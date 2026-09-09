@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes>
+    <node id="J0_0" x="0" y="0" type="traffic_light"/>
+    <node id="J0_1" x="0" y="400" type="traffic_light"/>
+    <node id="J0_2" x="0" y="800" type="traffic_light"/>
+    <node id="J1_0" x="400" y="0" type="traffic_light"/>
+    <node id="J1_1" x="400" y="400" type="traffic_light"/>
+    <node id="J1_2" x="400" y="800" type="traffic_light"/>
+    <node id="J2_0" x="800" y="0" type="traffic_light"/>
+    <node id="J2_1" x="800" y="400" type="traffic_light"/>
+    <node id="J2_2" x="800" y="800" type="traffic_light"/>
+    <node id="F_J0_0_W" x="-400" y="0" type="priority"/>
+    <node id="F_J0_0_S" x="0" y="-400" type="priority"/>
+    <node id="F_J0_1_W" x="-400" y="400" type="priority"/>
+    <node id="F_J0_2_W" x="-400" y="800" type="priority"/>
+    <node id="F_J0_2_N" x="0" y="1200" type="priority"/>
+    <node id="F_J1_0_S" x="400" y="-400" type="priority"/>
+    <node id="F_J1_2_N" x="400" y="1200" type="priority"/>
+    <node id="F_J2_0_E" x="1200" y="0" type="priority"/>
+    <node id="F_J2_0_S" x="800" y="-400" type="priority"/>
+    <node id="F_J2_1_E" x="1200" y="400" type="priority"/>
+    <node id="F_J2_2_E" x="1200" y="800" type="priority"/>
+    <node id="F_J2_2_N" x="800" y="1200" type="priority"/>
+</nodes>

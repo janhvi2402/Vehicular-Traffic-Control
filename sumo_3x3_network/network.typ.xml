@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<types>
+    <type id="mainroad" priority="3" numLanes="4" speed="16.67"/>
+    <type id="sideroad" priority="1" numLanes="2" speed="11.11"/>
+</types>
