@@ -1,0 +1,106 @@
+{
+  "dqn": {
+    "total_reward": {
+      "mean": -1176.2936933776364,
+      "std": 19.22666280064732
+    },
+    "mean_waiting_time": {
+      "mean": 184.8284700756388,
+      "std": 0.17152787060088315
+    },
+    "final_step_waiting_time": {
+      "mean": 251.5,
+      "std": 21.5
+    },
+    "throughput": {
+      "mean": 2.0,
+      "std": 0.0
+    },
+    "mean_queue_length": {
+      "mean": 25.468055613287206,
+      "std": 0.027777830294022365
+    },
+    "n_switch_votes": {
+      "mean": 4031.0,
+      "std": 18.0
+    },
+    "n_forced_switches": {
+      "mean": 0.5,
+      "std": 0.5
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "random": {
+    "total_reward": {
+      "mean": -1207.4900665469468,
+      "std": 24.707003813236952
+    },
+    "mean_waiting_time": {
+      "mean": 345.97082908527227,
+      "std": 3.058333581914951
+    },
+    "final_step_waiting_time": {
+      "mean": 431.0,
+      "std": 28.0
+    },
+    "throughput": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "mean_queue_length": {
+      "mean": 32.842361240233814,
+      "std": 0.23263889944387728
+    },
+    "n_switch_votes": {
+      "mean": 3229.5,
+      "std": 28.5
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle": {
+    "total_reward": {
+      "mean": -904.9984222650528,
+      "std": 11.536094307899475
+    },
+    "mean_waiting_time": {
+      "mean": 259.0451356604657,
+      "std": 0.3006946436168221
+    },
+    "final_step_waiting_time": {
+      "mean": 396.5,
+      "std": 11.5
+    },
+    "throughput": {
+      "mean": 1.0,
+      "std": 0.0
+    },
+    "mean_queue_length": {
+      "mean": 30.24236140017294,
+      "std": 0.057638904493716225
+    },
+    "n_switch_votes": {
+      "mean": 1620.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle_seconds_used": 15,
+  "normalized_performance_pct_vs_fixed_cycle": 10.313135506063198
+}

@@ -1,0 +1,106 @@
+{
+  "dqn": {
+    "total_reward": {
+      "mean": -1462.336817521602,
+      "std": 8.430275939102668
+    },
+    "mean_waiting_time": {
+      "mean": 193.01111042234376,
+      "std": 0.9328750388555006
+    },
+    "final_step_waiting_time": {
+      "mean": 184.33333333333334,
+      "std": 13.123346456686352
+    },
+    "throughput": {
+      "mean": 1.3333333333333333,
+      "std": 1.247219128924647
+    },
+    "mean_queue_length": {
+      "mean": 27.494907995996375,
+      "std": 0.17570164633075336
+    },
+    "n_switch_votes": {
+      "mean": 5208.0,
+      "std": 36.669696844488186
+    },
+    "n_forced_switches": {
+      "mean": 3.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "random": {
+    "total_reward": {
+      "mean": -1748.7650931676228,
+      "std": 152.33306043988122
+    },
+    "mean_waiting_time": {
+      "mean": 375.80370172470185,
+      "std": 6.095218617350078
+    },
+    "final_step_waiting_time": {
+      "mean": 383.6666666666667,
+      "std": 156.95080616408302
+    },
+    "throughput": {
+      "mean": 1.3333333333333333,
+      "std": 0.9428090415820634
+    },
+    "mean_queue_length": {
+      "mean": 36.254167527650246,
+      "std": 0.2651505306709577
+    },
+    "n_switch_votes": {
+      "mean": 5754.333333333333,
+      "std": 16.048537489614294
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle": {
+    "total_reward": {
+      "mean": -1418.8837110201518,
+      "std": 37.89098124857493
+    },
+    "mean_waiting_time": {
+      "mean": 264.8800916853361,
+      "std": 3.2026869835662866
+    },
+    "final_step_waiting_time": {
+      "mean": 530.3333333333334,
+      "std": 37.72119946248911
+    },
+    "throughput": {
+      "mean": 0.6666666666666666,
+      "std": 0.4714045207910317
+    },
+    "mean_queue_length": {
+      "mean": 32.230556741425836,
+      "std": 0.21506711463702993
+    },
+    "n_switch_votes": {
+      "mean": 2880.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle_seconds_used": 15,
+  "normalized_performance_pct_vs_fixed_cycle": 86.8276571964814
+}
