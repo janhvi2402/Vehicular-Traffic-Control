@@ -1,0 +1,3 @@
+total_reward,mean_waiting_time,final_step_waiting_time,throughput,mean_queue_length,n_switch_votes,n_forced_switches,n_steps
+-1612.0723140239716,180.15833211907497,240.0,2,25.50555578350193,6472,0,720
+-1709.842087984085,184.14999699433488,339.0,3,26.027778081906337,6467,0,720
