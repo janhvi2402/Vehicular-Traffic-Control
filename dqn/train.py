@@ -129,7 +129,17 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         actions = select_actions_epsilon_greedy(q_net, node_feats, epsilon, rng, device)
 
         next_obs, reward, terminated, truncated, info = env.step(actions)
-        done = terminated or truncated
+        # NOTE: this env only ever ends an episode via `truncated` (the
+        # fixed 3600s time limit) -- `terminated` is always False, there is
+        # no true absorbing/terminal state. Bootstrapping (below) must use
+        # `terminated` alone: treating a time-limit cutoff as if it were a
+        # real terminal state tells the Bellman target the value of
+        # continuing past that arbitrary clock stop is exactly zero, which
+        # is false (the traffic network doesn't "end", the episode is just
+        # cut off) -- see Pardo et al., "Time Limits in Reinforcement
+        # Learning". Only a genuine terminated=True should zero next_q.
+        done = terminated
+        episode_done = terminated or truncated
         episode_reward += reward
 
         agent_rewards = np.clip(info["agent_rewards"], -cfg.reward_clip, cfg.reward_clip)
@@ -178,7 +188,7 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         if step % cfg.checkpoint_every == 0:
             torch.save(q_net.state_dict(), os.path.join(out_dir, f"qnet_step{step}.pt"))
 
-        if done:
+        if episode_done:
             episode += 1
             obs, _ = env.reset(seed=cfg.seed + episode)
             episode_reward = 0.0
