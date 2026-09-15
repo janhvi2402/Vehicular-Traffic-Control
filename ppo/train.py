@@ -93,16 +93,37 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
             actions_np = actions.cpu().numpy()
 
             next_obs, reward, terminated, truncated, info = env.step(actions_np)
-            done = terminated or truncated
+            episode_done = terminated or truncated
             episode_reward += reward
             env_step += 1
 
             agent_rewards = np.clip(info["agent_rewards"], -cfg.reward_clip, cfg.reward_clip)
+
+            if truncated and not terminated:
+                # This env only ever ends via the 3600s time limit --
+                # terminated is always False, there is no true absorbing
+                # state. compute_gae() zeroes the bootstrap wherever
+                # buffer.dones[t]==1 (correctly, since self.values[t+1]
+                # would otherwise belong to the NEXT, freshly-reset
+                # episode -- an unrelated trajectory it must not bootstrap
+                # from). But that means a plain truncation would silently
+                # tell GAE this state's continuation is worth exactly 0,
+                # which is false: the traffic network didn't end, the
+                # clock just cut it off. Standard fix (CleanRL / Gymnasium
+                # guidance for TimeLimit truncation in PPO): fold the TRUE
+                # next-observation's bootstrap value directly into this
+                # step's reward before GAE ever sees it, using next_obs as
+                # it actually was BEFORE env.reset() overwrites `obs`.
+                with torch.no_grad():
+                    x_next = torch.as_tensor(next_obs["node_features"], dtype=torch.float32, device=device)
+                    _, true_next_value = net.forward(x_next)
+                agent_rewards = agent_rewards + cfg.gamma * true_next_value.cpu().numpy()
+
             buffer.add(feats, actions_np, log_probs.cpu().numpy(), values.cpu().numpy(),
-                       agent_rewards, float(done))
+                       agent_rewards, float(episode_done))
 
             obs = next_obs
-            if done:
+            if episode_done:
                 episode += 1
                 obs, _ = env.reset(seed=cfg.seed + episode)
                 episode_reward = 0.0
