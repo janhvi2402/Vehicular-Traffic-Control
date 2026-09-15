@@ -153,7 +153,7 @@ def train(cfg: ACConfig, net_file: str, route_file: str, out_dir: str, use_gui: 
         v_current = critic(x)  # V_w(s), one value per junction
 
         next_obs, reward, terminated, truncated, info = env.step(actions_np)
-        done = terminated or truncated
+        episode_done = terminated or truncated
         episode_reward += reward
 
         agent_rewards = np.clip(info["agent_rewards"], -cfg.reward_clip, cfg.reward_clip)
@@ -161,12 +161,12 @@ def train(cfg: ACConfig, net_file: str, route_file: str, out_dir: str, use_gui: 
 
         with torch.no_grad():
             next_x = torch.as_tensor(next_obs["node_features"], dtype=torch.float32, device=device)
-            v_next = critic(next_x) if not done else torch.zeros_like(v_current)
+            v_next = critic(next_x) if not terminated else torch.zeros_like(v_current)   # ← was "done"
 
         # paper's Eq. 7 TD error, per junction (each junction is its own
         # independent (i, a) tuple being updated this step, matching
         # dqn/ppo's independent-per-junction / parameter-shared design)
-        td_error = rewards_t + cfg.gamma * v_next * (0.0 if done else 1.0) - v_current
+        td_error = rewards_t + cfg.gamma * v_next * (0.0 if terminated else 1.0) - v_current  # ← was "done"
 
         # --- critic update: regress V_w(s) towards the TD target,
         # equivalent to Eq. 7's V_{n+1}(i) = V_n(i) + a(n)*delta_n(i) for a
@@ -212,7 +212,7 @@ def train(cfg: ACConfig, net_file: str, route_file: str, out_dir: str, use_gui: 
             torch.save(actor.state_dict(), os.path.join(out_dir, f"actor_step{step}.pt"))
             torch.save(critic.state_dict(), os.path.join(out_dir, f"critic_step{step}.pt"))
 
-        if done:
+        if episode_done:                                 # ← was "done"
             episode += 1
             obs, _ = env.reset(seed=cfg.seed + episode)
             episode_reward = 0.0
