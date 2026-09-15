@@ -138,6 +138,7 @@ class TrafficGridEnv(gym.Env):
         self.cfg = config
         self._sumo_started = False
         self._episode_step = 0
+        self._episode_arrived = 0
 
         # ---- Static topology discovery (no TraCI connection needed yet) ----
         net = sumolib.net.readNet(self.cfg.net_file)
@@ -240,6 +241,7 @@ class TrafficGridEnv(gym.Env):
         )
         self._sumo_started = True
         self._episode_step = 0
+        self._episode_arrived = 0
         self._time_in_phase[:] = 0.0
         self._rerouted_this_pass.clear()
 
@@ -259,7 +261,6 @@ class TrafficGridEnv(gym.Env):
         signal_votes = action[: self.n_agents]
         routing_choices = action[self.n_agents:]
 
-        self._advance_yellow_phases()
         wasted_votes, forced_switches = self._apply_signal_votes(signal_votes)
         if self.cfg.enable_routing:
             self._apply_routing(routing_choices)
@@ -267,6 +268,20 @@ class TrafficGridEnv(gym.Env):
         for _ in range(self.cfg.decision_interval):
             traci.simulationStep()
             self._time_in_phase += self.cfg.step_length
+            # Checked every step_length seconds (not just once per
+            # decision_interval) so a yellow phase lasts exactly
+            # cfg.yellow_time real seconds instead of always rounding up
+            # to the next decision_interval boundary. See docstring below.
+            self._advance_yellow_phases()
+            # traci.simulation.getArrivedNumber() only reports vehicles
+            # that arrived in the SINGLE most recent simulationStep() call
+            # (confirmed in SUMO's own TraCI docs), not since the last
+            # time it was queried. Reading it once after this whole
+            # decision_interval loop -- as the previous version did --
+            # silently discards arrivals from every tick except the last
+            # one. Summing it after every individual tick is the only way
+            # to not undercount.
+            self._episode_arrived += traci.simulation.getArrivedNumber()
         self._episode_step += self.cfg.decision_interval
 
         wait_now = self._per_junction_waiting()
@@ -295,7 +310,13 @@ class TrafficGridEnv(gym.Env):
             # an uncapped grid-wide magnitude is needed.
             "total_waiting_time": float(np.sum(wait_now)),
             "total_queue_length": float(np.sum(queue_now)),
-            "throughput": traci.simulation.getArrivedNumber(),
+            # Cumulative vehicles arrived so far THIS EPISODE (see the
+            # accumulation above) -- not this step's arrivals alone. Every
+            # existing caller (eval_common.run_episode, dqn/test.py) reads
+            # info["throughput"] only once, after the episode ends, and
+            # expects a whole-episode total; a per-step reset here would
+            # silently reintroduce the undercount for them.
+            "throughput": self._episode_arrived,
             "forced_switches": forced_switches,
         }
         return obs, reward, terminated, truncated, info
@@ -322,12 +343,19 @@ class TrafficGridEnv(gym.Env):
         stuck yellow, action_mask[i] stays 0 forever, and it can never
         vote-switch or be forced again for the rest of the episode.
 
-        Called at the top of step(), before _apply_signal_votes, so that
-        by the time votes/max_green are evaluated this step, any junction
-        whose yellow interval has elapsed is already back on a green phase
-        with _time_in_phase reset (it just won't be min_green-eligible
-        until it accumulates min_green seconds of its own, same as any
-        other freshly-green junction)."""
+        Called once per traci.simulationStep() inside step()'s inner loop
+        (i.e. every cfg.step_length seconds), NOT once per decision_interval.
+        Checking only once per decision_interval would round every yellow
+        phase up to a full decision_interval regardless of cfg.yellow_time
+        (e.g. yellow_time=4 but decision_interval=5 would always yield a
+        5s yellow) -- ticking it at step_length granularity instead means
+        yellow lasts the configured cfg.yellow_time as long as yellow_time
+        is a multiple of step_length. By the time the NEXT step()'s
+        _apply_signal_votes runs, any junction whose yellow interval has
+        already elapsed is back on a green phase with _time_in_phase reset
+        (it just won't be min_green-eligible until it accumulates
+        min_green seconds of its own, same as any other freshly-green
+        junction)."""
         for i, tid in enumerate(self.tl_ids):
             state = traci.trafficlight.getRedYellowGreenState(tid).lower()
             is_yellow = "y" in state
