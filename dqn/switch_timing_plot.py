@@ -8,9 +8,9 @@ policy behaves over time:
      yellow intervals across the whole episode -- this is the direct
      answer to "how is the model switching the lights".
   2. A histogram of the green-phase durations the policy actually chose,
-     with reference lines at min_green (10s) and max_green (90s, the hard
-     cap) so it's visible whether the policy is switching proactively or
-     just riding the cap.
+     with reference lines at min_green and max_green (the hard cap) so
+     it's visible whether the policy is switching proactively or just
+     riding the cap.
   3. A grid-wide time series of total queue length and total waiting time
      across the episode, to see how congestion evolves under the policy.
   4. A per-junction bar chart of how many times the 90s hard cap had to
@@ -178,14 +178,14 @@ def plot_congestion_timeseries(record, out_path):
     plt.close(fig)
 
 
-def plot_forced_switches(record, out_path):
+def plot_forced_switches(record, out_path, max_green):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.bar(record["tl_ids"], record["forced_counts"], color="#854F0B")
-    ax.set_ylabel("# forced switches (hit 90s cap)")
+    ax.set_ylabel(f"# forced switches (hit {max_green:.0f}s cap)")
     ax.set_xlabel("Junction")
     ax.set_title("Hard-cap (max_green) trigger count per junction")
     ax.tick_params(axis="x", labelrotation=90, labelsize=7)
@@ -238,7 +238,7 @@ def main():
         record, os.path.join(args.out, "green_duration_histogram.png"), env_cfg.min_green, env_cfg.max_green
     )
     plot_congestion_timeseries(record, os.path.join(args.out, "congestion_timeseries.png"))
-    plot_forced_switches(record, os.path.join(args.out, "forced_switches_per_junction.png"))
+    plot_forced_switches(record, os.path.join(args.out, "forced_switches_per_junction.png"), env_cfg.max_green)
 
     print(f"\nGreen-phase duration stats (s): mean={durations.mean():.1f}, "
           f"median={np.median(durations):.1f}, min={durations.min():.1f}, max={durations.max():.1f}")

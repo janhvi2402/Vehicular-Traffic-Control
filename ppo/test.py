@@ -41,7 +41,11 @@ def run_episode(net, env, seed, device, greedy=True):
         total_reward += reward
         n_switches += int(actions.sum())
         n_forced += int(info["forced_switches"].sum())
-        wait_sum += float(obs["node_features"][:, 4:8].sum()) * env.WAIT_NORM
+        # UNCAPPED, from TrafficGridEnv's own accumulator -- NOT
+        # obs["node_features"][:, 4:8].sum()*env.WAIT_NORM, which is
+        # clipped to [0,1] before WAIT_NORM in _get_obs() and silently
+        # caps each junction's contribution at WAIT_NORM.
+        wait_sum += info["total_waiting_time"]
         steps += 1
         if terminated or truncated:
             break

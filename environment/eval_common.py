@@ -60,8 +60,19 @@ def run_episode(env, policy_fn, seed):
         total_reward += reward
         n_switch_votes += int(np.sum(actions))
         n_forced += int(info["forced_switches"].sum())
-        queue_sum += float(obs["node_features"][:, 0:4].sum()) * env.QUEUE_NORM
-        wait_sum += float(obs["node_features"][:, 4:8].sum()) * env.WAIT_NORM
+        # UNCAPPED grid totals from info, not reconstructed from
+        # node_features. node_features[:, 0:4]/[:, 4:8] are clipped to
+        # [0,1] before *_NORM in _get_obs() (see TrafficGridEnv), so
+        # summing them back up silently caps each junction's contribution
+        # at QUEUE_NORM/WAIT_NORM and understates real congestion once any
+        # junction exceeds that -- exactly the case for a bad checkpoint,
+        # the random baseline, or any run with sustained congestion, which
+        # would previously look artificially closer to a good policy than
+        # it really was. info["total_queue_length"]/["total_waiting_time"]
+        # come straight from TrafficGridEnv's own per-junction accumulators
+        # and carry no such cap.
+        queue_sum += info["total_queue_length"]
+        wait_sum += info["total_waiting_time"]
         n_steps += 1
         if terminated or truncated:
             break

@@ -259,7 +259,8 @@ class TrafficGridEnv(gym.Env):
         signal_votes = action[: self.n_agents]
         routing_choices = action[self.n_agents:]
 
-        wasted_votes = self._apply_signal_votes(signal_votes)
+        self._advance_yellow_phases()
+        wasted_votes, forced_switches = self._apply_signal_votes(signal_votes)
         if self.cfg.enable_routing:
             self._apply_routing(routing_choices)
 
@@ -276,14 +277,26 @@ class TrafficGridEnv(gym.Env):
 
         reward = float(np.sum(agent_rewards))
         obs = self._get_obs()
+        queue_now = self._per_junction_queue()
 
         terminated = False
         truncated = self._episode_step >= self.cfg.episode_seconds or traci.simulation.getMinExpectedNumber() <= 0
         info = {
             "global_state": obs["node_features"].reshape(-1),
             "agent_rewards": agent_rewards.astype(np.float32),
+            # UNCAPPED grid totals -- deliberately NOT derived from
+            # node_features, whose queue/wait columns are clipped to
+            # [0,1] before QUEUE_NORM/WAIT_NORM norm ing (see _get_obs).
+            # Any consumer that reconstructs a "total" by summing the
+            # clipped features back up (obs[:, 0:4].sum()*QUEUE_NORM etc.)
+            # silently caps every junction's contribution at QUEUE_NORM /
+            # WAIT_NORM, which understates real congestion once any
+            # junction exceeds it. Use these two fields instead whenever
+            # an uncapped grid-wide magnitude is needed.
             "total_waiting_time": float(np.sum(wait_now)),
+            "total_queue_length": float(np.sum(queue_now)),
             "throughput": traci.simulation.getArrivedNumber(),
+            "forced_switches": forced_switches,
         }
         return obs, reward, terminated, truncated, info
 
@@ -296,23 +309,79 @@ class TrafficGridEnv(gym.Env):
     # Internals
     # ------------------------------------------------------------------ #
 
-    def _apply_signal_votes(self, votes: np.ndarray) -> np.ndarray:
-        wasted = np.zeros(self.n_agents, dtype=bool)
+    def _advance_yellow_phases(self):
+        """Auto-advances any junction that has been sitting in its yellow
+        phase for >= cfg.yellow_time back to its paired green phase.
+
+        This is intentionally independent of this step's signal_votes --
+        yellow duration is a fixed network-file property, not something a
+        vote should gate. Without this, _apply_signal_votes' `not is_yellow`
+        eligibility guard means a junction that ever enters yellow (which
+        is set with setPhaseDuration(tid, 9999), i.e. it will never expire
+        on its own) can never become eligible again: it is permanently
+        stuck yellow, action_mask[i] stays 0 forever, and it can never
+        vote-switch or be forced again for the rest of the episode.
+
+        Called at the top of step(), before _apply_signal_votes, so that
+        by the time votes/max_green are evaluated this step, any junction
+        whose yellow interval has elapsed is already back on a green phase
+        with _time_in_phase reset (it just won't be min_green-eligible
+        until it accumulates min_green seconds of its own, same as any
+        other freshly-green junction)."""
         for i, tid in enumerate(self.tl_ids):
-            if votes[i] != 1:
-                continue
-            phase = traci.trafficlight.getPhase(tid)
+            state = traci.trafficlight.getRedYellowGreenState(tid).lower()
+            is_yellow = "y" in state
+            if is_yellow and self._time_in_phase[i] >= self.cfg.yellow_time:
+                phase = traci.trafficlight.getPhase(tid)
+                n_phases = len(traci.trafficlight.getAllProgramLogics(tid)[0].phases)
+                next_phase = (phase + 1) % n_phases  # yellow -> its paired green phase
+                traci.trafficlight.setPhase(tid, next_phase)
+                traci.trafficlight.setPhaseDuration(tid, 9999)
+                self._time_in_phase[i] = 0.0
+
+    def _apply_signal_votes(self, votes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Applies each junction's binary switch vote subject to a
+        min_green eligibility floor, AND enforces max_green as a hard
+        ceiling: a junction that has been green for >= max_green seconds
+        is switched regardless of its vote (a fail-safe every real
+        fixed-time/actuated controller has). Every train/eval/plotting
+        script in this project (eval_common.py's run_episode,
+        dqn/ppo/ac's test.py, switch_timing_plot.py,
+        analyze_switching_behavior.py) already reads info["forced_switches"]
+        assuming this cap exists -- previously max_green was only used to
+        NORMALIZE the elapsed-phase-time feature (see _get_obs) and was
+        never actually enforced here, so info["forced_switches"] was never
+        populated and any script touching it crashed with a KeyError.
+
+        Returns (wasted, forced), both (n_agents,) bool arrays:
+          wasted[i]: voted to switch but wasn't eligible (still yellow, or
+                     hasn't held min_green yet) -- the vote had no effect.
+          forced[i]: the environment switched this junction because it
+                     hit max_green, independent of (or overriding) its vote.
+        """
+        wasted = np.zeros(self.n_agents, dtype=bool)
+        forced = np.zeros(self.n_agents, dtype=bool)
+        for i, tid in enumerate(self.tl_ids):
             is_yellow = "y" in traci.trafficlight.getRedYellowGreenState(tid).lower()
             eligible = (not is_yellow) and (self._time_in_phase[i] >= self.cfg.min_green)
-            if eligible:
+            hit_cap = (not is_yellow) and (self._time_in_phase[i] >= self.cfg.max_green)
+            wants_switch = votes[i] == 1
+
+            if wants_switch and not eligible:
+                wasted[i] = True
+            switching_by_vote = wants_switch and eligible
+            must_force = hit_cap and not switching_by_vote
+            if must_force:
+                forced[i] = True
+
+            if switching_by_vote or must_force:
+                phase = traci.trafficlight.getPhase(tid)
                 n_phases = len(traci.trafficlight.getAllProgramLogics(tid)[0].phases)
                 next_phase = (phase + 1) % n_phases  # green -> its paired yellow phase
                 traci.trafficlight.setPhase(tid, next_phase)
                 traci.trafficlight.setPhaseDuration(tid, 9999)
                 self._time_in_phase[i] = 0.0
-            else:
-                wasted[i] = True
-        return wasted
+        return wasted, forced
 
     def _apply_routing(self, choices: np.ndarray):
         for choice, edge_id in zip(choices, self._decision_edges):
@@ -342,6 +411,21 @@ class TrafficGridEnv(gym.Env):
             for lanes in self._approach_lanes[tid].values():
                 for lane in lanes:
                     total += traci.lane.getWaitingTime(lane)
+            out[i] = total
+        return out
+
+    def _per_junction_queue(self) -> np.ndarray:
+        """Uncapped per-junction queue length (vehicles), the same raw
+        quantity _get_obs() clips to [0,1]*QUEUE_NORM for the observation.
+        Exposed separately (via info["total_queue_length"]) so evaluation/
+        logging code has an unclipped source instead of reconstructing a
+        capped total from node_features."""
+        out = np.zeros(self.n_agents, dtype=np.float32)
+        for i, tid in enumerate(self.tl_ids):
+            total = 0.0
+            for lanes in self._approach_lanes[tid].values():
+                for lane in lanes:
+                    total += traci.lane.getLastStepHaltingNumber(lane)
             out[i] = total
         return out
 

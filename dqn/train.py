@@ -62,7 +62,7 @@ def make_optimizer(q_net: nn.Module, cfg: DQNConfig):
 
 def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui: bool = False,
           resume_from: str | None = None, start_step: int = 0, start_episode: int = 0,
-          chunk_steps: int | None = None):
+          start_gradient_steps: int = 0, chunk_steps: int | None = None):
     os.makedirs(out_dir, exist_ok=True)
     if chunk_steps is None:
         chunk_steps = cfg.total_env_steps - start_step
@@ -109,7 +109,17 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     obs, _ = env.reset(seed=cfg.seed + start_episode)
     episode = start_episode
     episode_reward = 0.0
-    gradient_steps = 0
+    # NOTE: gradient_steps starts from start_gradient_steps (persisted in
+    # resume_state.json across chunks), NOT from 0. It gates the target-
+    # network sync below ("every C steps reset Q^ = Q"). If it reset to 0
+    # on every --resume'd chunk instead, a run split across N chunks would
+    # sync its target network far more often (once every
+    # target_update_frequency gradient steps *within each chunk*) than the
+    # same run executed in one sitting -- silently changing training
+    # dynamics based on how the run happened to be split, not on how much
+    # training actually occurred. Pass --start_gradient_steps (read from
+    # the previous chunk's resume_state.json) whenever you --resume.
+    gradient_steps = start_gradient_steps
     last_loss = float("nan")
 
     end_step = min(start_step + chunk_steps, cfg.total_env_steps)
@@ -179,7 +189,8 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         pickle.dump(buffer.buffer, f)
     with open(os.path.join(out_dir, "resume_state.json"), "w") as f:
         import json
-        json.dump({"step": end_step, "episode": episode, "done_training": end_step >= cfg.total_env_steps}, f)
+        json.dump({"step": end_step, "episode": episode, "gradient_steps": gradient_steps,
+                   "done_training": end_step >= cfg.total_env_steps}, f)
     log_file.close()
     env.close()
     print(f"Chunk complete: ran steps {start_step + 1}..{end_step} of {cfg.total_env_steps}. "
@@ -198,6 +209,10 @@ if __name__ == "__main__":
     parser.add_argument("--resume", default=None, help="path to a checkpoint (.pt) to resume weights from")
     parser.add_argument("--start_step", type=int, default=0, help="absolute step count already completed")
     parser.add_argument("--start_episode", type=int, default=0, help="episode count already completed")
+    parser.add_argument("--start_gradient_steps", type=int, default=0,
+                         help="gradient-step count already completed (read the 'gradient_steps' field "
+                              "from the previous chunk's resume_state.json when using --resume, so the "
+                              "target-network sync schedule stays correct across chunks)")
     parser.add_argument("--gui", action="store_true")
     args = parser.parse_args()
 
@@ -208,5 +223,5 @@ if __name__ == "__main__":
     train(
         cfg, args.net_file, args.route_file, args.out, use_gui=args.gui,
         resume_from=args.resume, start_step=args.start_step, start_episode=args.start_episode,
-        chunk_steps=args.chunk_steps,
+        start_gradient_steps=args.start_gradient_steps, chunk_steps=args.chunk_steps,
     )
