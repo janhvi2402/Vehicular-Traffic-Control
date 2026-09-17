@@ -31,11 +31,22 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "dqn" package. All the
+# default paths below are built from this, so the Play button, "python
+# dqn/train.py", and "python -m dqn.train" all behave identically no
+# matter what directory VS Code sets as the current working directory.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, ReplayBuffer, select_actions_epsilon_greedy  # noqa: E402
+
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1")
+DEFAULT_TOTAL_EPISODES = 1000  # research run length, in full episodes rather than raw steps
 
 
 def linear_epsilon(step, total_steps, cfg: DQNConfig):
@@ -209,10 +220,15 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
-    parser.add_argument("--out", default="runs/dqn_run1")
-    parser.add_argument("--steps", type=int, default=None, help="override cfg.total_env_steps (grand total target)")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
+    parser.add_argument("--out", default=DEFAULT_OUT)
+    parser.add_argument("--episodes", type=int, default=DEFAULT_TOTAL_EPISODES,
+                         help="how many full episodes to train for (research runs: default 1000). "
+                              "Ignored if --steps is also given.")
+    parser.add_argument("--steps", type=int, default=None,
+                         help="override cfg.total_env_steps directly with a raw step count "
+                              "instead of --episodes (grand total target)")
     parser.add_argument("--chunk_steps", type=int, default=None,
                          help="run only this many steps in this invocation, then save and exit "
                               "(for splitting a long run across multiple sessions/chunks)")
@@ -224,11 +240,23 @@ if __name__ == "__main__":
                               "from the previous chunk's resume_state.json when using --resume, so the "
                               "target-network sync schedule stays correct across chunks)")
     parser.add_argument("--gui", action="store_true")
-    args = parser.parse_args()
+    # parse_known_args (not parse_args) so the VS Code Play button, which
+    # passes zero arguments, never errors out here.
+    args, _unknown = parser.parse_known_args()
 
     cfg = DQNConfig()
     if args.steps is not None:
         cfg.total_env_steps = args.steps
+    else:
+        # Research runs are specified in whole episodes, not raw step
+        # counts. Each episode is a fixed cfg.episode_seconds-long SUMO
+        # run sampled every cfg.decision_interval seconds, so it always
+        # takes the same number of env steps -- convert episodes -> steps
+        # here rather than changing anything else about how training runs.
+        steps_per_episode = cfg.episode_seconds // cfg.decision_interval
+        cfg.total_env_steps = args.episodes * steps_per_episode
+        print(f"Training for {args.episodes} episodes "
+              f"({steps_per_episode} steps/episode -> {cfg.total_env_steps} total steps)")
 
     train(
         cfg, args.net_file, args.route_file, args.out, use_gui=args.gui,

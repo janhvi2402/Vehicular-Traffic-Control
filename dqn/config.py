@@ -152,4 +152,7 @@ class DQNConfig:
 
     # logging / checkpointing
     log_every: int = 200             # env steps between console/CSV logging
-    checkpoint_every: int = 5_000    # env steps between checkpoint saves
+    checkpoint_every: int = 25_000   # env steps between checkpoint saves (raised from 5,000:
+                                      # at 5,000 a 1000-episode/720,000-step research run would
+                                      # write 144 checkpoint files; at 25,000 it writes ~29,
+                                      # keeping disk usage manageable on a student account)

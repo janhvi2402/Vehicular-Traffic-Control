@@ -45,7 +45,14 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "dqn" package. Building
+# every default path from this (instead of leaving them as bare relative
+# strings) means the script runs the same way from the VS Code Play
+# button, "python dqn/evaluate.py", or "python -m dqn.evaluate" -- no
+# terminal or command-line arguments required.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from environment.eval_common import (  # noqa: E402
@@ -54,6 +61,14 @@ from environment.eval_common import (  # noqa: E402
 )
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
+
+# ------------------------------------------------------------------ #
+# EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
+# ------------------------------------------------------------------ #
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "qnet_final.pt")
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "eval")
 
 
 # --------------------------------------------------------------------------- #
@@ -72,9 +87,10 @@ def dqn_policy_fn(q_net, epsilon, device, rng):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT,
+                         help=f"default: {DEFAULT_CHECKPOINT}")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--episodes", type=int, default=10, help="paper uses 30; reduce for faster iteration")
     parser.add_argument("--fixed_cycle_seconds", type=float, default=None,
                          help="phase duration for the fixed-time baseline controller. If omitted, "
@@ -89,8 +105,16 @@ def main():
                               "against an arbitrarily-chosen, untuned cycle length would not be a fair "
                               "or defensible baseline for a paper.")
     parser.add_argument("--base_seed", type=int, default=1000)
-    parser.add_argument("--out", default="runs/eval")
-    args = parser.parse_args()
+    parser.add_argument("--out", default=DEFAULT_OUT)
+    # parse_known_args (not parse_args) so this never errors out when the
+    # VS Code Play button runs it with zero arguments.
+    args, _unknown = parser.parse_known_args()
+
+    if not os.path.exists(args.checkpoint):
+        print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
+              f"Edit DEFAULT_CHECKPOINT near the top of this file, or pass "
+              f"--checkpoint <path> if you're running from a terminal.")
+        sys.exit(1)
 
     os.makedirs(args.out, exist_ok=True)
     cfg = DQNConfig()

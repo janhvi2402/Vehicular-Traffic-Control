@@ -36,7 +36,13 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "dqn" package. Building
+# every default path from this makes the script runnable from the VS
+# Code Play button with no arguments, regardless of the working
+# directory VS Code happens to launch it from.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from dqn.config import DQNConfig  # noqa: E402
@@ -44,6 +50,14 @@ from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
 from dqn.evaluate import random_policy_fn, fixed_cycle_policy_fn  # noqa: E402
 
 import traci  # noqa: E402
+
+# ------------------------------------------------------------------ #
+# EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
+# ------------------------------------------------------------------ #
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "qnet_final.pt")
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "timing")
 
 
 def run_and_record(env, policy_fn, seed):
@@ -197,13 +211,23 @@ def plot_forced_switches(record, out_path, max_green):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", choices=["dqn", "random", "fixed_cycle"], default="dqn")
-    parser.add_argument("--checkpoint", default=None, help="required if --policy dqn")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT,
+                         help=f"used when --policy dqn; default: {DEFAULT_CHECKPOINT}")
     parser.add_argument("--fixed_cycle_seconds", type=float, default=30.0)
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--out", default="runs/timing")
-    args = parser.parse_args()
+    parser.add_argument("--out", default=DEFAULT_OUT)
+    # parse_known_args (not parse_args) so the Play button (zero args)
+    # never errors out.
+    args, _unknown = parser.parse_known_args()
+
+    if args.policy == "dqn" and not os.path.exists(args.checkpoint):
+        print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
+              f"Edit DEFAULT_CHECKPOINT near the top of this file, or pass "
+              f"--checkpoint <path> if you're running from a terminal, or "
+              f"switch --policy to 'random' or 'fixed_cycle' which don't need one.")
+        sys.exit(1)
 
     os.makedirs(args.out, exist_ok=True)
     cfg = DQNConfig()

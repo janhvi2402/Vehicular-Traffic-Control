@@ -6,8 +6,16 @@ paper-style evaluation protocol (that's evaluate.py). Use this to confirm
 a checkpoint loads and behaves sensibly (no crashes, reasonable waiting
 times, plausible switch counts) before running the full evaluation.
 
-Usage:
+Usage (from a terminal, if you have one):
     python -m dqn.test --checkpoint runs/dqn_run1/qnet_final.pt
+
+Or just press the "Run Python File" / Play button in VS Code with no
+arguments at all -- every argument below has a hardcoded default (edit
+the DEFAULT_* constants if your checkpoint/network files live somewhere
+else), and every path is resolved relative to the project root (the
+folder that contains this "dqn" folder), not to whatever the current
+working directory happens to be. That's what makes the Play button work
+the same way no matter where VS Code decides to launch the script from.
 """
 
 from __future__ import annotations
@@ -19,11 +27,25 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "dqn" package (one level
+# up from this file). Every default path below is built from this, so
+# the script behaves identically whether it's launched with the Play
+# button, "python dqn/test.py", or "python -m dqn.test" -- regardless of
+# what directory VS Code happens to set as the current working directory.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
+
+# ------------------------------------------------------------------ #
+# EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
+# ------------------------------------------------------------------ #
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "qnet_final.pt")
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
 
 
 def run_episode(q_net, env, epsilon, seed, device, rng):
@@ -60,12 +82,22 @@ def run_episode(q_net, env, epsilon, seed, device, rng):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT,
+                         help=f"default: {DEFAULT_CHECKPOINT}")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--gui", action="store_true")
-    args = parser.parse_args()
+    # parse_known_args (not parse_args) so the script never errors out when
+    # VS Code's Play button runs it with zero arguments.
+    args, _unknown = parser.parse_known_args()
+
+    if not os.path.exists(args.checkpoint):
+        print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
+              f"Edit DEFAULT_CHECKPOINT near the top of this file to point at your "
+              f"actual checkpoint (e.g. runs/dqn_run1/qnet_final.pt), or pass "
+              f"--checkpoint <path> if you're running from a terminal.")
+        sys.exit(1)
 
     cfg = DQNConfig()
     device = "cuda" if torch.cuda.is_available() else "cpu"

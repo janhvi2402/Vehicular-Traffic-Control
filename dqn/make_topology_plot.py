@@ -16,16 +16,31 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# Project root = the folder that CONTAINS this "dqn" package. Basing the
+# four paths below on this (instead of leaving them as bare relative
+# strings) means clicking VS Code's Play button works no matter what
+# directory VS Code happens to set as the current working directory.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # ------------------------------------------------------------------ #
 # EDIT THESE FOUR LINES
 # ------------------------------------------------------------------ #
-SUMMARY_4X4 = "runs/dqn_run2/eval_4x4/summary.json"
-SUMMARY_3X3 = "runs/dqn_run2/eval_3x3/summary.json"
-OUT_DIR = "runs/dqn_run2"
+SUMMARY_4X4 = os.path.join(PROJECT_ROOT, "runs", "dqn_run2", "eval_4x4", "summary.json")
+SUMMARY_3X3 = os.path.join(PROJECT_ROOT, "runs", "dqn_run2", "eval_3x3", "summary.json")
+OUT_DIR = os.path.join(PROJECT_ROOT, "runs", "dqn_run2")
 OUT_FILENAME = "topology_generalization.png"
 # ------------------------------------------------------------------ #
 
 os.makedirs(OUT_DIR, exist_ok=True)
+
+for path in (SUMMARY_4X4, SUMMARY_3X3):
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Expected an evaluate.py summary.json at:\n  {path}\n"
+            f"Run dqn/evaluate.py first (once with the 4x4 net, once with the "
+            f"3x3 net, --out pointed at eval_4x4 / eval_3x3 respectively), or "
+            f"edit SUMMARY_4X4 / SUMMARY_3X3 near the top of this file."
+        )
 
 with open(SUMMARY_4X4) as f:
     s4 = json.load(f)
