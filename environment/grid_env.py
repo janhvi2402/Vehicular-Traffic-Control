@@ -88,7 +88,7 @@ class GridEnvConfig:
     decision_interval: int = 5                 # seconds of sim time per RL step (action repeat)
     min_green: int = 10                        # seconds before a switch vote is honored
     yellow_time: int = 4                       # must match the yellow phases baked into the .net.xml
-    max_green: int = 50                        # used only to normalize the "elapsed phase time" feature
+    max_green: int = 90                        # used only to normalize the "elapsed phase time" feature
     switch_penalty: float = 0.3                # discourages needless flip-flopping
     wasted_vote_penalty: float = 0.03           # small penalty for voting switch while ineligible
     enable_routing: bool = False
