@@ -1,0 +1,60 @@
+{
+  "n_decision_points": 5815,
+  "overall_switch_rate": 0.4820292347377472,
+  "correlations": {
+    "action_vs_elapsed": -0.1272346379234752,
+    "action_vs_served_queue": -0.07931890166593934,
+    "action_vs_waiting_queue": 0.6908298384857133,
+    "action_vs_served_wait": -0.06503507068574568,
+    "action_vs_waiting_wait": 0.7168577152210275,
+    "action_vs_imbalance": 0.7218253159792682
+  },
+  "switch_rate_by_elapsed_bin": {
+    "10-15s": {
+      "n": 2847,
+      "switch_rate": 0.5324903407095188
+    },
+    "15-20s": {
+      "n": 1329,
+      "switch_rate": 0.46651617757712566
+    },
+    "20-30s": {
+      "n": 1094,
+      "switch_rate": 0.4460694698354662
+    },
+    "30-50s": {
+      "n": 494,
+      "switch_rate": 0.34210526315789475
+    },
+    "50-90s": {
+      "n": 51,
+      "switch_rate": 0.19607843137254902
+    }
+  },
+  "mean_state_hold_vs_switch": {
+    "elapsed": {
+      "hold_mean": 17.769920333923096,
+      "switch_mean": 15.700321084552266
+    },
+    "served_queue": {
+      "hold_mean": 0.0351925630810093,
+      "switch_mean": 0.0067784516589368534
+    },
+    "waiting_queue": {
+      "hold_mean": 0.5942895086321381,
+      "switch_mean": 2.3217980734926864
+    },
+    "served_wait": {
+      "hold_mean": 0.1610225798440961,
+      "switch_mean": 0.039600428793203225
+    },
+    "waiting_wait": {
+      "hold_mean": 2.9654715143510226,
+      "switch_mean": 15.289332981837719
+    },
+    "imbalance": {
+      "hold_mean": 2.804448934506927,
+      "switch_mean": 15.249732553044515
+    }
+  }
+}
