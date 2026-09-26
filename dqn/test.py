@@ -7,7 +7,7 @@ a checkpoint loads and behaves sensibly (no crashes, reasonable waiting
 times, plausible switch counts) before running the full evaluation.
 
 Usage (from a terminal, if you have one):
-    python -m dqn.test --checkpoint runs/dqn_run1/qnet_final.pt
+    python -m dqn.test --checkpoint runs/dqn_run_matched500/qnet_final.pt
 
 Or just press the "Run Python File" / Play button in VS Code with no
 arguments at all -- every argument below has a hardcoded default (edit
@@ -43,7 +43,7 @@ from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
 # ------------------------------------------------------------------ #
 # EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
 # ------------------------------------------------------------------ #
-DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "qnet_final.pt")
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "qnet_final.pt")
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
 
@@ -77,6 +77,11 @@ def run_episode(q_net, env, epsilon, seed, device, rng):
         "throughput": info["throughput"],
         "n_switch_votes": n_switches,
         "n_forced_switches": n_forced,
+        # per-vehicle, whole-trip wait -- see grid_env.py's
+        # _update_vehicle_wait_tracking for what this actually measures
+        "mean_vehicle_wait": info["mean_vehicle_wait"],
+        "max_vehicle_wait": info["max_vehicle_wait"],
+        "n_vehicles_completed": info["n_vehicles_completed"],
     }
 
 
@@ -87,6 +92,23 @@ def main():
     parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
     parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--seed", type=int, default=123)
+    # NOTE: default 0.05 deliberately keeps Mnih et al.'s original
+    # evaluation protocol for this quick sanity check -- unlike
+    # dqn/evaluate.py, which defaults to 0.0 specifically so its numbers
+    # are fair to compare against ppo/evaluate.py (see the fairness note
+    # there). ppo/test.py is always fully greedy with no such flag, so
+    # DO NOT compare this script's printed numbers against ppo/test.py's
+    # -- they use different exploration noise by default. Only
+    # dqn/evaluate.py vs ppo/evaluate.py is an apples-to-apples
+    # comparison. Pass --eval_epsilon 0.0 here if you specifically want
+    # this script's output to be greedy-comparable to ppo/test.py anyway.
+    parser.add_argument("--eval_epsilon", type=float, default=0.05,
+                         help="epsilon for epsilon-greedy action selection. Default 0.05 "
+                              "matches Mnih et al.'s evaluation protocol for this single-"
+                              "checkpoint sanity check -- see the note above this argument "
+                              "for why this differs from dqn/evaluate.py's default and why "
+                              "you shouldn't compare this script's output directly against "
+                              "ppo/test.py's without passing --eval_epsilon 0.0.")
     parser.add_argument("--gui", action="store_true")
     # parse_known_args (not parse_args) so the script never errors out when
     # VS Code's Play button runs it with zero arguments.
@@ -95,7 +117,7 @@ def main():
     if not os.path.exists(args.checkpoint):
         print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
               f"Edit DEFAULT_CHECKPOINT near the top of this file to point at your "
-              f"actual checkpoint (e.g. runs/dqn_run1/qnet_final.pt), or pass "
+              f"actual checkpoint (e.g. runs/dqn_run_matched500/qnet_final.pt), or pass "
               f"--checkpoint <path> if you're running from a terminal.")
         sys.exit(1)
 
@@ -116,8 +138,11 @@ def main():
     )
     env = TrafficGridEnv(env_cfg)
 
-    # paper's evaluation protocol: fixed low epsilon (0.05), not fully greedy
-    result = run_episode(q_net, env, cfg.eval_epsilon, args.seed, device, rng)
+    if args.eval_epsilon != 0.0:
+        print(f"NOTE: running with eval_epsilon={args.eval_epsilon} (not fully greedy) -- "
+              f"do not compare this run's numbers against ppo/test.py, which is always "
+              f"greedy. Use dqn/evaluate.py vs ppo/evaluate.py for a fair comparison.")
+    result = run_episode(q_net, env, args.eval_epsilon, args.seed, device, rng)
     env.close()
 
     print("Single-episode sanity check")

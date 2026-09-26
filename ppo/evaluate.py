@@ -7,14 +7,17 @@ for DQN (see environment/eval_common.py) -- random and swept fixed-cycle
 -- so results are directly comparable across algorithms.
 
 Usage:
-    python -m ppo.evaluate --checkpoint runs/ppo_run1/actor_critic_final.pt \\
-        --episodes 10 --out runs/ppo_run1/eval
+    python -m ppo.evaluate --checkpoint runs/ppo_run_matched500/actor_critic_final.pt \\
+        --episodes 10 --out runs/ppo_run_matched500/eval
 
     # generalization test on the 3x3 network (same pattern as DQN's):
-    python -m ppo.evaluate --checkpoint runs/ppo_run1/actor_critic_final.pt \\
-        --net_file sumo_3x3_network/grid3x3.net.xml \\
-        --route_file sumo_3x3_network/routes3x3.rou.xml \\
-        --episodes 2 --out runs/ppo_run1/eval_3x3
+    python -m ppo.evaluate --checkpoint runs/ppo_run_matched500/actor_critic_final.pt \\
+        --net_file sumo_3x3_network/grid3x3_net.xml \\
+        --route_file sumo_3x3_network/routes3x3_rou.xml \\
+        --episodes 2 --out runs/ppo_run_matched500/eval_3x3
+
+    Or just hit Play/F5 with zero arguments -- DEFAULT_CHECKPOINT below
+    points at runs/ppo_run_matched500/actor_critic_final.pt already.
 """
 
 from __future__ import annotations
@@ -28,15 +31,26 @@ import sys
 import numpy as np
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "ppo" package. Mirrors the
+# pattern used throughout dqn/*.py, so the VS Code Play button works here
+# too regardless of the working directory VS Code happens to launch from.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from environment.eval_common import (  # noqa: E402
     random_policy_fn, fixed_cycle_policy_fn, run_episode,
     run_policy_over_seeds, summarize, plot_comparison,
+    build_results_table, print_results_table, save_results_table_csv,
 )
 from ppo.config import PPOConfig  # noqa: E402
 from ppo.actor_critic import ActorCritic  # noqa: E402
+
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "actor_critic_final.pt")
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "eval")
 
 
 def ppo_policy_fn(net, device, greedy=True):
@@ -51,17 +65,26 @@ def ppo_policy_fn(net, device, greedy=True):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT,
+                         help=f"default: {DEFAULT_CHECKPOINT}")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--episodes", type=int, default=10, help="paper uses 3 seeds x multiple envs; reduce for faster iteration")
     parser.add_argument("--stochastic", action="store_true",
                          help="sample from the policy instead of taking the argmax action at eval time")
     parser.add_argument("--fixed_cycle_seconds", type=float, default=None)
     parser.add_argument("--sweep_fixed_cycle", type=float, nargs="+", default=[15, 20, 25, 30, 45, 60])
     parser.add_argument("--base_seed", type=int, default=1000)
-    parser.add_argument("--out", default="runs/eval")
-    args = parser.parse_args()
+    parser.add_argument("--out", default=DEFAULT_OUT)
+    # parse_known_args (not parse_args) so the VS Code Play button, which
+    # passes zero arguments, never errors out here -- matches dqn/evaluate.py.
+    args, _unknown = parser.parse_known_args()
+
+    if not os.path.exists(args.checkpoint):
+        print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
+              f"Edit DEFAULT_CHECKPOINT near the top of this file, or pass "
+              f"--checkpoint <path> if you're running from a terminal.")
+        sys.exit(1)
 
     os.makedirs(args.out, exist_ok=True)
     cfg = PPOConfig()
@@ -132,12 +155,18 @@ def main():
     print("\n" + "=" * 72)
     print(f"{'metric':<22s}{'PPO':>15s}{'Fixed-cycle':>17s}{'Random':>15s}")
     print("-" * 72)
-    for metric in ["total_reward", "mean_waiting_time", "throughput", "mean_queue_length"]:
+    for metric in ["total_reward", "mean_waiting_time", "mean_vehicle_wait", "max_vehicle_wait",
+                   "throughput", "mean_queue_length"]:
         d = summaries["ppo"][metric]
         f_ = summaries["fixed_cycle"][metric]
         r = summaries["random"][metric]
         print(f"{metric:<22s}{d['mean']:>10.1f}±{d['std']:<4.0f}{f_['mean']:>12.1f}±{f_['std']:<4.0f}{r['mean']:>10.1f}±{r['std']:<4.0f}")
     print("=" * 72)
+    for name in ["ppo", "fixed_cycle", "random"]:
+        n_done = summaries[name]["n_vehicles_completed"]["mean"]
+        print(f"  [{name}] vehicles completed their trip this episode (mean): {n_done:.0f} "
+              f"-- mean_vehicle_wait/max_vehicle_wait above are computed ONLY over these; a "
+              f"vehicle still on the road when the episode ends is not counted.")
     print(f"Normalized performance vs. fixed-cycle baseline (paper's Fig. 3-style formula, "
           f"random=0%, fixed-cycle={chosen_cycle}s=100%): {normalized_pct:.1f}%")
     if fixed_r < rand_r:
@@ -147,6 +176,18 @@ def main():
     print(f"\nFull results saved to: {args.out}/summary.json (+ per-episode CSVs)")
 
     plot_comparison(summaries, args.out, algo_name="PPO")
+
+    # ---- report-style tables (Method / Avg. Waiting Time / Std Dev / Improvement %),
+    # matching dqn/evaluate.py's tables exactly, so both algorithms' results
+    # can be tabulated the same way for the report (Table 8.6-style).
+    wait_table = build_results_table(summaries, algo_name="PPO", metric="mean_waiting_time")
+    print_results_table(wait_table, metric_label="Avg. Waiting Time (s)")
+    save_results_table_csv(wait_table, os.path.join(args.out, "results_table_grid_waiting_time.csv"))
+
+    veh_table = build_results_table(summaries, algo_name="PPO", metric="mean_vehicle_wait")
+    print_results_table(veh_table, metric_label="Avg. Wait/Vehicle (s)",
+                         title="Per-Vehicle Waiting Time Comparison Against Fixed-Time Baseline")
+    save_results_table_csv(veh_table, os.path.join(args.out, "results_table_per_vehicle_wait.csv"))
 
 
 if __name__ == "__main__":

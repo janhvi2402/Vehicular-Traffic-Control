@@ -30,8 +30,8 @@ episodes are full 3600s demand profiles rather than short Atari episodes)
 at the paper's evaluation epsilon of 0.05 for the DQN policy.
 
 Usage:
-    python -m dqn.evaluate --checkpoint runs/dqn_run1/qnet_final.pt \\
-        --episodes 10 --out runs/dqn_run1/eval
+    python -m dqn.evaluate --checkpoint runs/dqn_run_matched500/qnet_final.pt \\
+        --episodes 10 --out runs/dqn_run_matched500/eval
 """
 
 from __future__ import annotations
@@ -58,6 +58,7 @@ from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from environment.eval_common import (  # noqa: E402
     random_policy_fn, fixed_cycle_policy_fn, run_episode,
     run_policy_over_seeds, summarize, plot_comparison,
+    build_results_table, print_results_table, save_results_table_csv,
 )
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
@@ -65,10 +66,10 @@ from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
 # ------------------------------------------------------------------ #
 # EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
 # ------------------------------------------------------------------ #
-DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "qnet_final.pt")
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "qnet_final.pt")
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
-DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1", "eval")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "eval")
 
 
 # --------------------------------------------------------------------------- #
@@ -106,6 +107,23 @@ def main():
                               "or defensible baseline for a paper.")
     parser.add_argument("--base_seed", type=int, default=1000)
     parser.add_argument("--out", default=DEFAULT_OUT)
+    # FAIRNESS FIX: default changed to 0.0 (fully greedy). Was hardcoded
+    # to cfg.eval_epsilon (0.05, Mnih et al.'s own evaluation protocol)
+    # with no override. ppo/evaluate.py defaults to greedy (argmax)
+    # unless --stochastic is passed, so leaving DQN's eval hardcoded to
+    # 5%-random made every DQN-vs-PPO comparison compare DQN-with-noise
+    # against PPO-with-zero-noise -- noise that can only ever hurt DQN's
+    # reported score, never help it. That's a built-in asymmetry against
+    # DQN baked into the comparison, not a real algorithmic difference.
+    # Pass --eval_epsilon 0.05 explicitly to reproduce the paper's
+    # original protocol for a DQN-only report that isn't being compared
+    # against PPO.
+    parser.add_argument("--eval_epsilon", type=float, default=0.0,
+                         help="epsilon for epsilon-greedy action selection at evaluation "
+                              "time. Default 0.0 (fully greedy) to match ppo/evaluate.py's "
+                              "default greedy evaluation -- see the fairness note above this "
+                              "argument. Pass 0.05 to reproduce Mnih et al.'s original "
+                              "evaluation protocol instead.")
     # parse_known_args (not parse_args) so this never errors out when the
     # VS Code Play button runs it with zero arguments.
     args, _unknown = parser.parse_known_args()
@@ -136,8 +154,8 @@ def main():
     print(f"Evaluating over {args.episodes} episodes (seeds {seeds[0]}..{seeds[-1]})")
 
     rng_dqn = np.random.default_rng(args.base_seed)
-    dqn_rows = run_policy_over_seeds(env, dqn_policy_fn(q_net, cfg.eval_epsilon, device, rng_dqn), seeds)
-    print("DQN done.")
+    dqn_rows = run_policy_over_seeds(env, dqn_policy_fn(q_net, args.eval_epsilon, device, rng_dqn), seeds)
+    print(f"DQN done (eval_epsilon={args.eval_epsilon}).")
 
     rng_rand = np.random.default_rng(args.base_seed + 9999)
     random_rows = run_policy_over_seeds(env, random_policy_fn(env.n_agents, rng_rand), seeds)
@@ -198,12 +216,19 @@ def main():
     print("\n" + "=" * 72)
     print(f"{'metric':<22s}{'DQN':>15s}{'Fixed-cycle':>17s}{'Random':>15s}")
     print("-" * 72)
-    for metric in ["total_reward", "mean_waiting_time", "throughput", "mean_queue_length"]:
+    for metric in ["total_reward", "mean_waiting_time", "mean_vehicle_wait", "max_vehicle_wait",
+                   "throughput", "mean_queue_length"]:
         d = summaries["dqn"][metric]
         f_ = summaries["fixed_cycle"][metric]
         r = summaries["random"][metric]
         print(f"{metric:<22s}{d['mean']:>10.1f}±{d['std']:<4.0f}{f_['mean']:>12.1f}±{f_['std']:<4.0f}{r['mean']:>10.1f}±{r['std']:<4.0f}")
     print("=" * 72)
+    for name in ["dqn", "fixed_cycle", "random"]:
+        n_done = summaries[name]["n_vehicles_completed"]["mean"]
+        n_steps_ = summaries[name]["n_steps"]["mean"]
+        print(f"  [{name}] vehicles completed their trip this episode (mean): {n_done:.0f} "
+              f"-- mean_vehicle_wait/max_vehicle_wait above are computed ONLY over these; a "
+              f"vehicle still on the road when the episode ends is not counted.")
     print(f"Normalized performance vs. fixed-cycle baseline (paper's Fig. 3 formula, "
           f"random=0%, fixed-cycle={chosen_cycle}s=100%): {normalized_pct:.1f}%")
     if fixed_r < rand_r:
@@ -216,6 +241,20 @@ def main():
     print(f"\nFull results saved to: {args.out}/summary.json (+ per-episode CSVs)")
 
     plot_comparison(summaries, args.out, algo_name="DQN")
+
+    # ---- report-style tables (Method / Avg. Waiting Time / Std Dev / Improvement %),
+    # matching Table 8.6 from the earlier 2-junction report. Two versions:
+    # grid-wide per-step average (what that report called "Avg. Waiting
+    # Time"), and the per-vehicle whole-trip average -- these measure
+    # different things, see eval_common.build_results_table's docstring.
+    wait_table = build_results_table(summaries, algo_name="DQN", metric="mean_waiting_time")
+    print_results_table(wait_table, metric_label="Avg. Waiting Time (s)")
+    save_results_table_csv(wait_table, os.path.join(args.out, "results_table_grid_waiting_time.csv"))
+
+    veh_table = build_results_table(summaries, algo_name="DQN", metric="mean_vehicle_wait")
+    print_results_table(veh_table, metric_label="Avg. Wait/Vehicle (s)",
+                         title="Per-Vehicle Waiting Time Comparison Against Fixed-Time Baseline")
+    save_results_table_csv(veh_table, os.path.join(args.out, "results_table_per_vehicle_wait.csv"))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 """
-traffic_grid_env.py
-====================
+grid_env.py
+===========
 A single, algorithm-agnostic Gymnasium environment for multi-junction SUMO
 traffic-signal control, built to be shared across DQN, PPO, actor-critic and
 critic-actor training runs (mirrors the role common/env.py played for the
@@ -91,6 +91,9 @@ class GridEnvConfig:
     max_green: int = 90                        # used only to normalize the "elapsed phase time" feature
     switch_penalty: float = 0.3                # discourages needless flip-flopping
     wasted_vote_penalty: float = 0.03           # small penalty for voting switch while ineligible
+    waiting_speed_threshold: float = 0.1        # m/s; matches SUMO's own "halting" definition --
+                                                 # a vehicle below this speed counts as waiting,
+                                                 # used only for the per-vehicle wait tracking below
     enable_routing: bool = False
     routing_k: int = 3                         # candidate downstream edges considered per decision edge
     routing_interval: int = 10                 # seconds between rerouting passes
@@ -216,6 +219,18 @@ class TrafficGridEnv(gym.Env):
         self._time_in_phase = np.zeros(self.n_agents, dtype=np.float32)
         self._prev_wait = np.zeros(self.n_agents, dtype=np.float32)
 
+        # Per-VEHICLE waiting-time tracking (distinct from the per-junction,
+        # per-step totals above). _veh_wait_accum[veh_id] accumulates
+        # waiting_speed_threshold-gated seconds for that one vehicle across
+        # its ENTIRE trip so far; when a vehicle completes its trip (shows
+        # up in traci.simulation.getArrivedIDList()) its final accumulated
+        # value is moved into _completed_veh_waits, which is what
+        # "average/max wait a vehicle actually experienced" should be
+        # computed from -- NOT total_waiting_time, which is a per-step
+        # grid-wide sum and answers a different question entirely.
+        self._veh_wait_accum: dict[str, float] = {}
+        self._completed_veh_waits: list[float] = []
+
     # ------------------------------------------------------------------ #
     # Gymnasium API
     # ------------------------------------------------------------------ #
@@ -244,6 +259,8 @@ class TrafficGridEnv(gym.Env):
         self._episode_arrived = 0
         self._time_in_phase[:] = 0.0
         self._rerouted_this_pass.clear()
+        self._veh_wait_accum = {}
+        self._completed_veh_waits = []
 
         # Take control away from SUMO's built-in actuated logic: fix each TL
         # to phase 0 with an effectively infinite duration so only our
@@ -273,6 +290,7 @@ class TrafficGridEnv(gym.Env):
             # cfg.yellow_time real seconds instead of always rounding up
             # to the next decision_interval boundary. See docstring below.
             self._advance_yellow_phases()
+            self._update_vehicle_wait_tracking()
             # traci.simulation.getArrivedNumber() only reports vehicles
             # that arrived in the SINGLE most recent simulationStep() call
             # (confirmed in SUMO's own TraCI docs), not since the last
@@ -310,6 +328,20 @@ class TrafficGridEnv(gym.Env):
             # an uncapped grid-wide magnitude is needed.
             "total_waiting_time": float(np.sum(wait_now)),
             "total_queue_length": float(np.sum(queue_now)),
+            # Per-VEHICLE waiting time, cumulative over the episode SO FAR
+            # (only vehicles that have completed their trip contribute --
+            # see _update_vehicle_wait_tracking). This is the number that
+            # answers "how long does a car actually sit there", as opposed
+            # to total_waiting_time above, which is a per-step grid-wide
+            # sum across everyone currently queued. Read these on the FINAL
+            # step of an episode to get the whole-episode per-vehicle stats
+            # (mirrors how "throughput" is already read: cumulative, read
+            # once at episode end).
+            "mean_vehicle_wait": (float(np.mean(self._completed_veh_waits))
+                                   if self._completed_veh_waits else 0.0),
+            "max_vehicle_wait": (float(np.max(self._completed_veh_waits))
+                                  if self._completed_veh_waits else 0.0),
+            "n_vehicles_completed": len(self._completed_veh_waits),
             # Cumulative vehicles arrived so far THIS EPISODE (see the
             # accumulation above) -- not this step's arrivals alone. Every
             # existing caller (eval_common.run_episode, dqn/test.py) reads
@@ -410,6 +442,28 @@ class TrafficGridEnv(gym.Env):
                 traci.trafficlight.setPhaseDuration(tid, 9999)
                 self._time_in_phase[i] = 0.0
         return wasted, forced
+
+    def _update_vehicle_wait_tracking(self):
+        """Ticked once per traci.simulationStep() (every step_length seconds,
+        same granularity as _advance_yellow_phases -- NOT once per
+        decision_interval, or short waits between polls would be missed the
+        same way switch_timing_plot's yellow-phase sampling was).
+
+        For every vehicle currently in the simulation, adds step_length to
+        its running accumulator iff its speed is below
+        cfg.waiting_speed_threshold this tick -- i.e. this is a genuine
+        seconds-actually-stopped total across the vehicle's whole trip, not
+        a per-lane snapshot. When a vehicle arrives (completes its route),
+        its final accumulated value is popped into _completed_veh_waits
+        before traci removes it -- has to happen here, on the same tick,
+        because an arrived vehicle is no longer queryable on the next one."""
+        for vid in traci.vehicle.getIDList():
+            if traci.vehicle.getSpeed(vid) < self.cfg.waiting_speed_threshold:
+                self._veh_wait_accum[vid] = self._veh_wait_accum.get(vid, 0.0) + self.cfg.step_length
+            else:
+                self._veh_wait_accum.setdefault(vid, 0.0)
+        for vid in traci.simulation.getArrivedIDList():
+            self._completed_veh_waits.append(self._veh_wait_accum.pop(vid, 0.0))
 
     def _apply_routing(self, choices: np.ndarray):
         for choice, edge_id in zip(choices, self._decision_edges):

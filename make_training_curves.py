@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 # ------------------------------------------------------------------ #
 # EDIT THESE
 # ------------------------------------------------------------------ #
-TRAIN_LOG_CSV = "runs/ppo_run1/train_log.csv"
-OUT_PATH = "runs/ppo_run1/training_curves.png"
-TOTAL_UPDATES_LABEL = "196-update (~25k env step)"  # just for the title text
+TRAIN_LOG_CSV = "runs/ppo_run_matched500/train_log.csv"
+OUT_PATH = "runs/ppo_run_matched500/training_curves.png"
+TOTAL_UPDATES_LABEL = "500-update (~360k env step)"  # just for the title text
 # ------------------------------------------------------------------ #
 
 updates, entropy, value_loss, wait, reward = [], [], [], [], []
@@ -43,11 +43,16 @@ axes[1].set_title("Value loss")
 axes[1].set_xlabel("PPO update")
 
 axes[2].plot(updates, wait, color="#0F6E56")
-axes[2].set_title("Waiting time at log checkpoints")
+axes[2].set_title("Waiting time (end of episode)")
 axes[2].set_xlabel("PPO update")
 
 axes[3].plot(updates, reward, color="#854F0B")
-axes[3].set_title("Episode reward (so far)")
+# was "Episode reward (so far)" -- stale wording from before the
+# episode_reward-logged-as-zero fix in ppo/train.py (see
+# last_completed_episode_reward). Each point is now the COMPLETED
+# episode's total reward, not a live running sum, so "so far" no
+# longer describes what's plotted.
+axes[3].set_title("Episode reward (completed episode)")
 axes[3].set_xlabel("PPO update")
 
 fig.suptitle(f"PPO training curves \u2014 {TOTAL_UPDATES_LABEL} validation run")

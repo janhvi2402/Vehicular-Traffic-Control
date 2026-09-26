@@ -21,7 +21,15 @@ Adapted as follows from the paper's setting:
     simplification dqn/train.py makes for its optimizer)
 
 Usage:
-    python -m ppo.train --updates 196 --out runs/ppo_run1
+    python -m ppo.train --updates 500 --out runs/ppo_run_matched500
+
+    Or just hit Play/F5 with zero arguments -- every default below
+    already matches this (500 updates, runs/ppo_run_matched500).
+    For a multi-seed run (recommended -- see config.py's disclosed
+    limitations on single-seed comparisons), override --seed and --out
+    per run, e.g.:
+        python -m ppo.train --seed 1 --out runs/ppo_run_matched500_seed1
+        python -m ppo.train --seed 2 --out runs/ppo_run_matched500_seed2
 """
 
 from __future__ import annotations
@@ -35,11 +43,24 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Project root = the folder that CONTAINS this "ppo" package. Building
+# every default path from this (instead of leaving them as bare relative
+# strings) means the script runs the same way from the VS Code Play
+# button, "python ppo/train.py", or "python -m ppo.train" -- no terminal
+# or command-line arguments required, regardless of what directory VS
+# Code happens to set as the current working directory. Mirrors the
+# pattern already used throughout dqn/*.py.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from ppo.config import PPOConfig  # noqa: E402
 from ppo.actor_critic import ActorCritic, RolloutBuffer  # noqa: E402
+
+DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
+DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500")
 
 
 def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui: bool = False,
@@ -81,6 +102,18 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     obs, _ = env.reset(seed=cfg.seed + start_episode)
     episode = start_episode
     episode_reward = 0.0
+    # Captures the just-completed episode's TOTAL reward, for logging
+    # after the horizon loop below -- NOT the live `episode_reward`,
+    # which is reset to 0.0 the instant an episode ends (see the
+    # `if episode_done:` block inside the loop). Since horizon=720
+    # exactly equals one episode's length, an episode boundary lands on
+    # essentially every update's LAST step -- so by the time the
+    # log_writer.writerow() call below runs (after the loop exits),
+    # `episode_reward` has almost always already been reset to 0.0 for
+    # the NEXT (barely-started) episode. Every logged "episode_reward"
+    # would read ~0.0 regardless of how training was actually going.
+    # This variable is what the log line uses instead.
+    last_completed_episode_reward = 0.0
     env_step = start_update * cfg.horizon
 
     end_update = min(start_update + chunk_updates, cfg.total_updates)
@@ -124,6 +157,7 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
 
             obs = next_obs
             if episode_done:
+                last_completed_episode_reward = episode_reward
                 episode += 1
                 obs, _ = env.reset(seed=cfg.seed + episode)
                 episode_reward = 0.0
@@ -179,10 +213,10 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         if update % cfg.log_every == 0:
             print(
                 f"update {update:>5d} | env_step {env_step:>7d} | ep {episode:>4d} | "
-                f"reward(ep so far) {episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | "
+                f"episode_reward {last_completed_episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | "
                 f"policy_loss {last_policy_loss:+.4f} | value_loss {last_value_loss:.4f} | entropy {last_entropy:.4f}"
             )
-            log_writer.writerow([update, env_step, episode, episode_reward, info["total_waiting_time"],
+            log_writer.writerow([update, env_step, episode, last_completed_episode_reward, info["total_waiting_time"],
                                   info["throughput"], last_policy_loss, last_value_loss, last_entropy])
             log_file.flush()
 
@@ -202,19 +236,30 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
-    parser.add_argument("--out", default="runs/ppo_run1")
+    parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
+    parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
+    parser.add_argument("--out", default=DEFAULT_OUT)
     parser.add_argument("--updates", type=int, default=None, help="override cfg.total_updates (grand total target)")
     parser.add_argument("--chunk_updates", type=int, default=None,
                          help="run only this many PPO updates in this invocation, then save and exit")
     parser.add_argument("--resume", default=None, help="path to a checkpoint (.pt) to resume weights from")
     parser.add_argument("--start_update", type=int, default=0)
     parser.add_argument("--start_episode", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=None,
+                         help="override cfg.seed (default: whatever PPOConfig() sets, currently "
+                              "42). Use this to train multiple seeds for the same budget, e.g. "
+                              "--seed 1 --out runs/ppo_run_matched500_seed1 -- a single training "
+                              "seed can't distinguish a real algorithmic difference from seed "
+                              "variance, so report results across at least a few seeds rather "
+                              "than one.")
     parser.add_argument("--gui", action="store_true")
-    args = parser.parse_args()
+    # parse_known_args (not parse_args) so the VS Code Play button, which
+    # passes zero arguments, never errors out here -- matches dqn/train.py.
+    args, _unknown = parser.parse_known_args()
 
     cfg = PPOConfig()
+    if args.seed is not None:
+        cfg.seed = args.seed
     if args.updates is not None:
         cfg.total_updates = args.updates
 

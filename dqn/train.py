@@ -16,7 +16,15 @@ Algorithm 1 ("deep Q-learning with experience replay") from Mnih et al.,
     values to match our far shorter total training budget
 
 Usage:
-    python -m dqn.train --steps 150000 --out runs/dqn_run1
+    python -m dqn.train --episodes 500 --out runs/dqn_run_matched500
+
+    Or just hit Play/F5 with zero arguments -- every default above
+    already matches this (500 episodes, runs/dqn_run_matched500).
+    For a multi-seed run (recommended -- see ppo/config.py's disclosed
+    limitations on single-seed comparisons), override --seed and --out
+    per run, e.g.:
+        python -m dqn.train --seed 1 --out runs/dqn_run_matched500_seed1
+        python -m dqn.train --seed 2 --out runs/dqn_run_matched500_seed2
 """
 
 from __future__ import annotations
@@ -45,8 +53,15 @@ from dqn.q_network import QNetwork, ReplayBuffer, select_actions_epsilon_greedy 
 
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
-DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run1")
-DEFAULT_TOTAL_EPISODES = 1000  # research run length, in full episodes rather than raw steps
+DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500")
+DEFAULT_TOTAL_EPISODES = 500  # research run length, in full episodes rather than raw steps.
+# Matches PPOConfig.total_updates=500 (ppo/config.py) and DQNConfig.total_env_steps'
+# own 360,000-step default (500 episodes at 720 steps/episode) exactly, ON PURPOSE:
+# leaving this and either of those two out of sync is exactly how the DQN side of a
+# "matched" DQN-vs-PPO comparison silently ends up trained on a completely different
+# budget than the PPO side. If you raise this for a longer, PPO-independent research
+# run, that's fine -- just don't let a run destined for a head-to-head comparison end
+# up here with a different episode count than whatever ppo/train.py used.
 
 
 def linear_epsilon(step, total_steps, cfg: DQNConfig):
@@ -224,11 +239,19 @@ if __name__ == "__main__":
     parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--out", default=DEFAULT_OUT)
     parser.add_argument("--episodes", type=int, default=DEFAULT_TOTAL_EPISODES,
-                         help="how many full episodes to train for (research runs: default 1000). "
+                         help="how many full episodes to train for (research runs: default 500, "
+                              "matched to ppo/config.py's total_updates=500). "
                               "Ignored if --steps is also given.")
     parser.add_argument("--steps", type=int, default=None,
                          help="override cfg.total_env_steps directly with a raw step count "
                               "instead of --episodes (grand total target)")
+    parser.add_argument("--seed", type=int, default=None,
+                         help="override cfg.seed (default: whatever DQNConfig() sets, currently "
+                              "0). Use this to train multiple seeds for the same budget, e.g. "
+                              "--seed 1 --out runs/dqn_run_matched500_seed1 -- a single training "
+                              "seed can't distinguish a real algorithmic difference from seed "
+                              "variance, so report results across at least a few seeds rather "
+                              "than one.")
     parser.add_argument("--chunk_steps", type=int, default=None,
                          help="run only this many steps in this invocation, then save and exit "
                               "(for splitting a long run across multiple sessions/chunks)")
@@ -245,6 +268,8 @@ if __name__ == "__main__":
     args, _unknown = parser.parse_known_args()
 
     cfg = DQNConfig()
+    if args.seed is not None:
+        cfg.seed = args.seed
     if args.steps is not None:
         cfg.total_env_steps = args.steps
     else:

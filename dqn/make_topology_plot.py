@@ -25,9 +25,16 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ------------------------------------------------------------------ #
 # EDIT THESE FOUR LINES
 # ------------------------------------------------------------------ #
-SUMMARY_4X4 = os.path.join(PROJECT_ROOT, "runs", "dqn_run2", "eval_4x4", "summary.json")
-SUMMARY_3X3 = os.path.join(PROJECT_ROOT, "runs", "dqn_run2", "eval_3x3", "summary.json")
-OUT_DIR = os.path.join(PROJECT_ROOT, "runs", "dqn_run2")
+# FIX: was runs/dqn_run2 -- a different, unrelated checkpoint from the
+# runs/dqn_run_matched500 checkpoint used everywhere else in this project's
+# DQN-vs-PPO comparison (evaluate.py, run_matched_eval.sh,
+# make_dqn_ppo_comparison.py). Pointing this figure at a different model
+# than every other figure describes means the topology-generalization
+# story and the algorithm-comparison story would silently be about two
+# different trained policies.
+SUMMARY_4X4 = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "eval_4x4", "summary.json")
+SUMMARY_3X3 = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "eval_3x3", "summary.json")
+OUT_DIR = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500")
 OUT_FILENAME = "topology_generalization.png"
 # ------------------------------------------------------------------ #
 
