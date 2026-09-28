@@ -1,60 +1,60 @@
 {
-  "n_decision_points": 5815,
-  "overall_switch_rate": 0.4820292347377472,
+  "n_decision_points": 5839,
+  "overall_switch_rate": 0.4833019352628875,
   "correlations": {
-    "action_vs_elapsed": -0.1272346379234752,
-    "action_vs_served_queue": -0.07931890166593934,
-    "action_vs_waiting_queue": 0.6908298384857133,
-    "action_vs_served_wait": -0.06503507068574568,
-    "action_vs_waiting_wait": 0.7168577152210275,
-    "action_vs_imbalance": 0.7218253159792682
+    "action_vs_elapsed": -0.08096299114041067,
+    "action_vs_served_queue": -0.07043958542863273,
+    "action_vs_waiting_queue": 0.6471957046780129,
+    "action_vs_served_wait": -0.045586967208023604,
+    "action_vs_waiting_wait": 0.70934245233414,
+    "action_vs_imbalance": 0.7141340313800713
   },
   "switch_rate_by_elapsed_bin": {
     "10-15s": {
-      "n": 2847,
-      "switch_rate": 0.5324903407095188
+      "n": 2831,
+      "switch_rate": 0.4592016955139527
     },
     "15-20s": {
-      "n": 1329,
-      "switch_rate": 0.46651617757712566
+      "n": 1529,
+      "switch_rate": 0.5840418574231524
     },
     "20-30s": {
-      "n": 1094,
-      "switch_rate": 0.4460694698354662
+      "n": 969,
+      "switch_rate": 0.47368421052631576
     },
     "30-50s": {
-      "n": 494,
-      "switch_rate": 0.34210526315789475
+      "n": 390,
+      "switch_rate": 0.37435897435897436
     },
     "50-90s": {
-      "n": 51,
-      "switch_rate": 0.19607843137254902
+      "n": 112,
+      "switch_rate": 0.19642857142857142
     }
   },
   "mean_state_hold_vs_switch": {
     "elapsed": {
-      "hold_mean": 17.769920333923096,
-      "switch_mean": 15.700321084552266
+      "hold_mean": 17.760026668135126,
+      "switch_mean": 16.152019973176326
     },
     "served_queue": {
-      "hold_mean": 0.0351925630810093,
-      "switch_mean": 0.0067784516589368534
+      "hold_mean": 0.03646005966191581,
+      "switch_mean": 0.00885896527285613
     },
     "waiting_queue": {
-      "hold_mean": 0.5942895086321381,
-      "switch_mean": 2.3217980734926864
+      "hold_mean": 0.6887636725223732,
+      "switch_mean": 2.3462083628632175
     },
     "served_wait": {
-      "hold_mean": 0.1610225798440961,
-      "switch_mean": 0.039600428793203225
+      "hold_mean": 0.15512098505831254,
+      "switch_mean": 0.06024096402439304
     },
     "waiting_wait": {
-      "hold_mean": 2.9654715143510226,
-      "switch_mean": 15.289332981837719
+      "hold_mean": 3.1256215263369227,
+      "switch_mean": 16.11020567178895
     },
     "imbalance": {
-      "hold_mean": 2.804448934506927,
-      "switch_mean": 15.249732553044515
+      "hold_mean": 2.9705005412786103,
+      "switch_mean": 16.04996470776456
     }
   }
 }

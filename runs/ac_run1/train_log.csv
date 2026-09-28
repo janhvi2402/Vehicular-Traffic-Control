@@ -1,0 +1,2 @@
+env_step,episode,critic_lr,actor_lr,episode_reward,total_waiting_time,throughput,critic_loss,actor_loss,entropy
+200,0,0.0003,0.0003,-443.98996356129646,86.0,883,66.79739379882812,-0.0032562988344579935,0.045412346720695496
