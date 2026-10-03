@@ -62,7 +62,8 @@ from environment.eval_common import (  # noqa: E402
 )
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
-
+from environment.eval_common import (  # noqa: E402
+    random_policy_fn, fixed_cycle_policy_fn, always_switch_policy_fn, run_episode)
 # ------------------------------------------------------------------ #
 # EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
 # ------------------------------------------------------------------ #
@@ -168,12 +169,12 @@ def main():
         # cycle length by mean waiting time, so the reported "fixed-cycle"
         # baseline is the strongest fair comparison, not an arbitrary pick.
         print(f"No --fixed_cycle_seconds given; sweeping {args.sweep_fixed_cycle} on one probe episode...")
-        probe_seed = seeds[0]
+        sweep_seeds = [2000 + i for i in range(5)]
         sweep_results = {}
         for cand in args.sweep_fixed_cycle:
-            r = run_episode(env, fixed_cycle_policy_fn(cand, env.cfg.max_green), probe_seed)
-            sweep_results[cand] = r["mean_waiting_time"]
-            print(f"  cycle={cand:>5.1f}s -> mean_waiting_time={r['mean_waiting_time']:.1f}")
+            vals = [run_episode(env, fixed_cycle_policy_fn(cand, env.cfg.max_green), s)["mean_waiting_time"] for s in sweep_seeds]
+            sweep_results[cand] = float(np.mean(vals))
+            print(f"  cycle={cand:>5.1f}s -> mean_waiting_time={sweep_results[cand]:.1f}")
         chosen_cycle = min(sweep_results, key=sweep_results.get)
         print(f"Selected fixed-cycle baseline: {chosen_cycle}s (lowest mean waiting time in sweep)")
 
@@ -181,10 +182,12 @@ def main():
         env, fixed_cycle_policy_fn(chosen_cycle, env.cfg.max_green), seeds
     )
     print("Fixed-cycle baseline done.")
-
+    always_rows = run_policy_over_seeds(env, always_switch_policy_fn(env.n_agents), seeds)
+    print("Always-switch baseline done.")
     env.close()
 
     summaries = {
+        "always_switch": summarize(always_rows),
         "algo": summarize(dqn_rows),
         "dqn": summarize(dqn_rows),  # kept for backward-compatible key name in this script's own output
         "random": summarize(random_rows),
@@ -203,7 +206,7 @@ def main():
     summaries["normalized_performance_pct_vs_fixed_cycle"] = normalized_pct
 
     # ---- save raw per-episode rows + summary ----
-    for name, rows in [("dqn", dqn_rows), ("random", random_rows), ("fixed_cycle", fixed_rows)]:
+    for name, rows in [("ppo", dqn_rows), ("random", random_rows), ("fixed_cycle", fixed_rows), ("always_switch", always_rows)]:
         with open(os.path.join(args.out, f"{name}_episodes.csv"), "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()

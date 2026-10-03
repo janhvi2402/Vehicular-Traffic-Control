@@ -85,7 +85,7 @@ def run_episode(env, policy_fn, seed, return_events=False):
             break
     durations = np.array([g["end"] - g["start"] for g in greens], dtype=np.float64)
     n_greens = len(greens)
-    n_at_max = int((durations >= env.cfg.max_green).sum()) if n_greens else 0
+    n_at_max = sum(1 for g in greens if g["ended_by_forced"])
     row = {
         "total_reward": total_reward,
         # averaged over every decision step in the episode, NOT a final-step
@@ -149,15 +149,16 @@ def plot_comparison(summaries: dict, out_dir: str, algo_name: str = "DQN"):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    policies = ["random", "fixed_cycle", "algo"]
-    labels = ["Random", "Fixed-cycle", algo_name]
-    colors = ["#993556", "#854F0B", "#0F6E56"]
+    has_always = "always_switch" in summaries
+    policies = ["random", "fixed_cycle"] + (["always_switch"] if has_always else []) + ["algo"]
+    labels = ["Random", "Fixed-cycle"] + (["Always-switch"] if has_always else []) + [algo_name]
+    colors = ["#993556", "#854F0B"] + (["#5A5A5A"] if has_always else []) + ["#0F6E56"]
     metrics = [
         ("mean_waiting_time", "Mean waiting time per step (s)\n(grid-wide, per-step sum)"),
         ("mean_vehicle_wait", "Mean wait per vehicle (s)\n(per-vehicle, whole trip)"),
         ("throughput", "Throughput (vehicles arrived)"),
         ("mean_queue_length", "Mean queue length (vehicles)"),
-        ("total_reward", "Total episode reward"),
+        ("share_greens_at_max_green", "Share of greens ended by max_green cap"),
     ]
 
     fig, axes = plt.subplots(1, 5, figsize=(22, 4.5))
@@ -205,7 +206,10 @@ def build_results_table(summaries: dict, algo_name: str = "DQN", metric: str = "
     the per-vehicle whole-trip version instead -- they are NOT the same
     number, see grid_env.py's _update_vehicle_wait_tracking docstring."""
     baseline_mean = summaries["fixed_cycle"][metric]["mean"]
-    order = [("fixed_cycle", "Fixed-Time Baseline"), ("random", "Random"), ("algo", algo_name)]
+    order = [("fixed_cycle", "Fixed-Time Baseline"), ("random", "Random")]
+    if "always_switch" in summaries:
+        order.append(("always_switch", "Always-switch"))
+    order.append(("algo", algo_name))
     rows = []
     for key, label in order:
         m = summaries[key][metric]["mean"]
@@ -306,3 +310,7 @@ def plot_multi_algo_comparison(rows, out_path, metric_label: str = "Avg. Waiting
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved: {out_path}")
+
+def always_switch_policy_fn(n_agents):
+    """Votes to switch at every opportunity; the env ignores ineligible votes, so this switches at min green."""
+    return lambda obs: np.ones(n_agents, dtype=np.int64)

@@ -18,7 +18,7 @@ class Probe(TrafficGridEnv):
         for i, tid in enumerate(s.tl_ids):
             y = "y" in traci.trafficlight.getRedYellowGreenState(tid).lower()
             if y:
-                if s.run[i] >= s.cfg.max_green: s.greens_ge_max += 1
+                if s.run[i] >= s.cfg.max_green - s.cfg.decision_interval + 1: s.greens_ge_max += 1
                 s.run[i] = 0
             else:
                 s.run[i] += 1
@@ -34,7 +34,7 @@ def episode(policy, seed, name):
         # path B: independent re-derivation from pre-step state
         for i, tid in enumerate(env.tl_ids):
             y = "y" in traci.trafficlight.getRedYellowGreenState(tid).lower()
-            if (not y) and env._time_in_phase[i] >= cfg.max_green and votes[i] != 1:
+            if (not y) and env._time_in_phase[i] + cfg.decision_interval > cfg.max_green and votes[i] != 1:
                 pathB += 1
         obs, r, te, tr, info = env.step(votes)
         pathA += int(info["forced_switches"].sum())     # what run_episode does

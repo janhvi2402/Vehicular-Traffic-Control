@@ -47,7 +47,8 @@ from environment.eval_common import (  # noqa: E402
 from ppo.config import PPOConfig  # noqa: E402
 from environment.eligibility import eligibility_from_features  # noqa: E402
 from ppo.actor_critic import ActorCritic  # noqa: E402
-
+from environment.eval_common import (  # noqa: E402
+    random_policy_fn, fixed_cycle_policy_fn, always_switch_policy_fn, run_episode)
 DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "actor_critic_final.pt")
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
@@ -116,21 +117,23 @@ def main():
         chosen_cycle = args.fixed_cycle_seconds
     else:
         print(f"No --fixed_cycle_seconds given; sweeping {args.sweep_fixed_cycle} on one probe episode...")
-        probe_seed = seeds[0]
+        sweep_seeds = [2000 + i for i in range(5)]
         sweep_results = {}
         for cand in args.sweep_fixed_cycle:
-            r = run_episode(env, fixed_cycle_policy_fn(cand, env.cfg.max_green), probe_seed)
-            sweep_results[cand] = r["mean_waiting_time"]
-            print(f"  cycle={cand:>5.1f}s -> mean_waiting_time={r['mean_waiting_time']:.1f}")
+            vals = [run_episode(env, fixed_cycle_policy_fn(cand, env.cfg.max_green), s)["mean_waiting_time"] for s in sweep_seeds]
+            sweep_results[cand] = float(np.mean(vals))
+            print(f"  cycle={cand:>5.1f}s -> mean_waiting_time={sweep_results[cand]:.1f}")
         chosen_cycle = min(sweep_results, key=sweep_results.get)
         print(f"Selected fixed-cycle baseline: {chosen_cycle}s (lowest mean waiting time in sweep)")
 
     fixed_rows = run_policy_over_seeds(env, fixed_cycle_policy_fn(chosen_cycle, env.cfg.max_green), seeds)
     print("Fixed-cycle baseline done.")
-
+    always_rows = run_policy_over_seeds(env, always_switch_policy_fn(env.n_agents), seeds)
+    print("Always-switch baseline done.")
     env.close()
 
     summaries = {
+        "always_switch": summarize(always_rows),
         "algo": summarize(ppo_rows),
         "ppo": summarize(ppo_rows),
         "random": summarize(random_rows),
@@ -145,7 +148,7 @@ def main():
     normalized_pct = 100.0 * (ppo_r - rand_r) / denom if abs(denom) > 1e-9 else float("nan")
     summaries["normalized_performance_pct_vs_fixed_cycle"] = normalized_pct
 
-    for name, rows in [("ppo", ppo_rows), ("random", random_rows), ("fixed_cycle", fixed_rows)]:
+    for name, rows in [("ppo", ppo_rows), ("random", random_rows), ("fixed_cycle", fixed_rows), ("always_switch", always_rows)]:
         with open(os.path.join(args.out, f"{name}_episodes.csv"), "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()

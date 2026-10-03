@@ -458,7 +458,8 @@ class TrafficGridEnv(gym.Env):
         for i, tid in enumerate(self.tl_ids):
             is_yellow = "y" in traci.trafficlight.getRedYellowGreenState(tid).lower()
             eligible = (not is_yellow) and (self._time_in_phase[i] >= self.cfg.min_green)
-            hit_cap = (not is_yellow) and (self._time_in_phase[i] >= self.cfg.max_green)
+            # switch now if waiting for the next decision would push the green past max_green
+            hit_cap = (not is_yellow) and (self._time_in_phase[i] + self.cfg.decision_interval > self.cfg.max_green)
             wants_switch = votes[i] == 1
 
             if wants_switch and not eligible:
