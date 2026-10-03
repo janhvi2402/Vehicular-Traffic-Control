@@ -1,6 +1,6 @@
 """Fraction of (step, junction) rows that are eligible to switch, per policy (1200 s episodes, seed 1000).
 Needed for docs/LIMITATIONS.md: PPO's surrogate and entropy terms average over ALL rows, ineligible rows contribute 0."""
-import os, sys, json
+import os, sys
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
@@ -23,5 +23,5 @@ for name, pol in pols.items():
         el += int((obs["action_mask"] > 0.5).sum()); n += 16
         obs, _, te, tr, _ = env.step(pol(obs))
         if te or tr: break
-    res[name] = round(el / n, 3); print(f"{name:22s} eligible fraction = {el / n:.3f}", flush=True)
+    print(f"{name:22s} eligible fraction = {el / n:.3f}", flush=True)
 env.close()

@@ -1,7 +1,11 @@
 """Step 1 verification: forced-switch counting via independent paths. Read-only w.r.t. repo code."""
-import sys, numpy as np, traci
-sys.path.insert(0, ".")
+import os, sys, numpy as np, traci
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
+
+NET = os.environ.get("TLS_NET_FILE", "sumo_4x4_network/grid4x4.net.xml")
+ROUTE = os.environ.get("TLS_ROUTE_FILE", "sumo_4x4_network/routes.rou.xml")
+
 
 class Probe(TrafficGridEnv):
     def __init__(s, cfg):
@@ -21,7 +25,7 @@ class Probe(TrafficGridEnv):
         super()._advance_yellow_phases()
 
 def episode(policy, seed, name):
-    cfg = GridEnvConfig(net_file="net.xml", route_file="routes.xml")
+    cfg = GridEnvConfig(net_file=NET, route_file=ROUTE)
     env = Probe(cfg); obs, _ = env.reset(seed=seed)
     rng = np.random.default_rng(0)
     pathA = pathB = 0; prev_yellow = np.zeros(env.n_agents, bool)

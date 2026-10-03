@@ -57,10 +57,12 @@ def main():
     env = TrafficGridEnv(GridEnvConfig(net_file=a.net_file, route_file=a.route_file,
                                        episode_seconds=cfg.episode_seconds, decision_interval=cfg.decision_interval))
     print(f"{'policy':14s}{'votes':>8s}{'executed':>10s}{'wasted':>8s}   run_episode.n_switch_votes")
-    for name, pol in [(a.algo, policy), ("fixed_cycle15", fixed_cycle_policy_fn(15, env.cfg.max_green)),
-                      ("random", random_policy_fn(env.n_agents, np.random.default_rng(1)))]:
-        v, e = count(env, pol, a.seed); r = run_episode(env, pol, a.seed)
+    # factories: every call gets a FRESH policy (the random policy's RNG must not carry over between the two runs)
+    for name, make in [(a.algo, lambda: policy), ("fixed_cycle15", lambda: fixed_cycle_policy_fn(15, env.cfg.max_green)),
+                       ("random", lambda: random_policy_fn(env.n_agents, np.random.default_rng(1)))]:
+        v, e = count(env, make(), a.seed); r = run_episode(env, make(), a.seed)
         print(f"{name:14s}{v:8d}{e:10d}{v - e:8d}   {r['n_switch_votes']}")
+        assert e == r["n_switch_votes"], f"{name}: executed votes != run_episode.n_switch_votes"
         if name == a.algo: assert v == e, "learned policy produced wasted votes"
     env.close(); print("OK: learned policy wasted votes == 0")
 
