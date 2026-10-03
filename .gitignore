@@ -11,3 +11,4 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
+runs/*_v2_*/
