@@ -56,7 +56,9 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from ppo.config import PPOConfig  # noqa: E402
-from ppo.actor_critic import ActorCritic, RolloutBuffer  # noqa: E402
+from environment.eligibility import eligibility_from_features  # noqa: E402
+from environment.seeds import training_env_seed  # noqa: E402
+from ppo.actor_critic import ActorCritic, RolloutBuffer, mask_switch_logits  # noqa: E402
 
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
@@ -88,20 +90,32 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.learning_rate)
 
     buffer = RolloutBuffer(cfg.horizon, n_agents, cfg.input_dim)
+    # seeded minibatch-shuffling RNG (np.random.permutation ignored cfg.seed); offset by start_update so
+    # resumed chunks do not replay the first chunk's shuffles
+    shuffle_rng = np.random.default_rng(cfg.seed + start_update)
 
     log_path = os.path.join(out_dir, "train_log.csv")
     write_header = not (resume_from and os.path.exists(log_path))
+    # resuming a log written before the *_ep columns existed: keep its column count so rows stay aligned
+    log_n_cols = None
+    if not write_header:
+        with open(log_path) as _f:
+            log_n_cols = len(_f.readline().strip().split(","))
     log_file = open(log_path, "a" if resume_from else "w", newline="")
     log_writer = csv.writer(log_file)
     if write_header:
         log_writer.writerow(
             ["update", "env_step", "episode", "episode_reward", "total_waiting_time",
-             "throughput", "policy_loss", "value_loss", "entropy"]
+             "throughput", "policy_loss", "value_loss", "entropy",
+             # episode aggregates of the last COMPLETED episode (the earlier columns are end-of-episode snapshots)
+             "mean_waiting_time_ep", "mean_vehicle_wait_ep"]
         )
 
-    obs, _ = env.reset(seed=cfg.seed + start_episode)
+    obs, _ = env.reset(seed=training_env_seed(cfg.seed, start_episode))
     episode = start_episode
     episode_reward = 0.0
+    ep_wait_sum, ep_steps = 0.0, 0
+    last_completed_mean_wait = last_completed_mean_vehicle_wait = float("nan")
     # Captures the just-completed episode's TOTAL reward, for logging
     # after the horizon loop below -- NOT the live `episode_reward`,
     # which is reset to 0.0 the instant an episode ends (see the
@@ -122,13 +136,16 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         for _ in range(cfg.horizon):
             feats = obs["node_features"]
             x = torch.as_tensor(feats, dtype=torch.float32, device=device)
-            actions, log_probs, values = net.act(x)
-            actions_np = actions.cpu().numpy()
+            eligible_np = eligibility_from_features(feats, env.cfg.min_green, env.cfg.max_green)
+            actions, log_probs, values = net.act(x, torch.as_tensor(eligible_np, device=device))
+            actions_np = actions.cpu().numpy()  # executed actions: ineligible rows are always 0
 
             next_obs, reward, terminated, truncated, info = env.step(actions_np)
+            assert np.array_equal(actions_np, info["executed_actions"]), "executed action mismatch"
             episode_done = terminated or truncated
             episode_reward += reward
             env_step += 1
+            ep_wait_sum += info["total_waiting_time"]; ep_steps += 1
 
             agent_rewards = np.clip(info["agent_rewards"], -cfg.reward_clip, cfg.reward_clip)
 
@@ -153,13 +170,16 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
                 agent_rewards = agent_rewards + cfg.gamma * true_next_value.cpu().numpy()
 
             buffer.add(feats, actions_np, log_probs.cpu().numpy(), values.cpu().numpy(),
-                       agent_rewards, float(episode_done))
+                       agent_rewards, float(episode_done), eligible_np)
 
             obs = next_obs
             if episode_done:
                 last_completed_episode_reward = episode_reward
+                last_completed_mean_wait = ep_wait_sum / max(ep_steps, 1)
+                last_completed_mean_vehicle_wait = info["mean_vehicle_wait"]
+                ep_wait_sum, ep_steps = 0.0, 0
                 episode += 1
-                obs, _ = env.reset(seed=cfg.seed + episode)
+                obs, _ = env.reset(seed=training_env_seed(cfg.seed, episode))
                 episode_reward = 0.0
 
         # bootstrap value for the state right after the last stored step
@@ -168,26 +188,31 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
             _, last_values = net.forward(x)
         advantages, returns = buffer.compute_gae(last_values.cpu().numpy(), cfg.gamma, cfg.gae_lambda)
 
-        b_obs, b_actions, b_log_probs, b_advantages, b_returns = buffer.get_flat(advantages, returns)
+        b_obs, b_actions, b_log_probs, b_advantages, b_returns, b_eligible = buffer.get_flat(advantages, returns)
         # Standard PPO implementation detail (universal in reference code,
         # e.g. OpenAI Baselines), not explicitly tabulated in the paper:
         # normalize advantages per-update to stabilize the policy gradient
         # scale across updates.
-        b_advantages = (b_advantages - b_advantages.mean()) / (b_advantages.std() + 1e-8)
+        # statistics over ELIGIBLE rows only: ineligible rows have no policy gradient (action is forced),
+        # so including them would only distort the mean/std the real samples are normalized by
+        _adv_e = b_advantages[b_eligible]
+        b_advantages = (b_advantages - _adv_e.mean()) / (_adv_e.std() + 1e-8)
 
         b_obs_t = torch.as_tensor(b_obs, device=device)
         b_actions_t = torch.as_tensor(b_actions, device=device)
         b_log_probs_t = torch.as_tensor(b_log_probs, device=device)
         b_advantages_t = torch.as_tensor(b_advantages, device=device)
         b_returns_t = torch.as_tensor(b_returns, device=device)
+        b_eligible_t = torch.as_tensor(b_eligible, device=device)
 
         dataset_size = len(b_obs)
         last_policy_loss = last_value_loss = last_entropy = float("nan")
         for _epoch in range(cfg.num_epochs):
-            idx = np.random.permutation(dataset_size)
+            idx = shuffle_rng.permutation(dataset_size)
             for start in range(0, dataset_size, cfg.minibatch_size):
                 mb_idx = idx[start:start + cfg.minibatch_size]
                 logits, values_pred = net(b_obs_t[mb_idx])
+                logits = mask_switch_logits(logits, b_eligible_t[mb_idx])
                 dist = torch.distributions.Categorical(logits=logits)
                 new_log_probs = dist.log_prob(b_actions_t[mb_idx])
                 entropy = dist.entropy().mean()
@@ -216,8 +241,10 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
                 f"episode_reward {last_completed_episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | "
                 f"policy_loss {last_policy_loss:+.4f} | value_loss {last_value_loss:.4f} | entropy {last_entropy:.4f}"
             )
-            log_writer.writerow([update, env_step, episode, last_completed_episode_reward, info["total_waiting_time"],
-                                  info["throughput"], last_policy_loss, last_value_loss, last_entropy])
+            row = [update, env_step, episode, last_completed_episode_reward, info["total_waiting_time"],
+                   info["throughput"], last_policy_loss, last_value_loss, last_entropy,
+                   last_completed_mean_wait, last_completed_mean_vehicle_wait]
+            log_writer.writerow(row[:log_n_cols] if log_n_cols else row)
             log_file.flush()
 
         if update % cfg.checkpoint_every == 0:

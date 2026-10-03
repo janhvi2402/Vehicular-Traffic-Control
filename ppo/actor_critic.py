@@ -17,6 +17,17 @@ import torch.nn as nn
 from torch.distributions import Categorical
 
 
+NEG_LOGIT = -1e9
+
+
+def mask_switch_logits(logits: torch.Tensor, eligible: torch.Tensor) -> torch.Tensor:
+    """Ineligible junction (yellow, or elapsed < min_green): the switch logit (index 1) is set to a
+    large negative value, so P(switch)=0 and the sampled/argmax action is always hold."""
+    block = torch.zeros_like(logits, dtype=torch.bool)
+    block[..., 1] = ~eligible
+    return logits.masked_fill(block, NEG_LOGIT)
+
+
 class ActorCritic(nn.Module):
     """Shared trunk, two heads: policy logits (2 actions) and a scalar
     value estimate. Matches the paper's Eq. 9 combined-objective setting,
@@ -38,23 +49,23 @@ class ActorCritic(nn.Module):
         return self.policy_head(h), self.value_head(h).squeeze(-1)
 
     @torch.no_grad()
-    def act(self, x: torch.Tensor):
+    def act(self, x: torch.Tensor, eligible: torch.Tensor):
         """Samples an action from the current policy (stochastic, matching
         the paper's on-policy rollout collection -- NOT epsilon-greedy;
         PPO's exploration comes from the policy's own entropy, encouraged
         by entropy_coeff during training)."""
         logits, value = self.forward(x)
+        logits = mask_switch_logits(logits, eligible)
         dist = Categorical(logits=logits)
         action = dist.sample()
         return action, dist.log_prob(action), value
 
     @torch.no_grad()
-    def act_greedy(self, x: torch.Tensor):
-        """Deterministic action (argmax) for evaluation/test, mirroring how
-        dqn/test.py and dqn/evaluate.py use a fixed low epsilon rather than
-        pure exploration at test time."""
+    def act_greedy(self, x: torch.Tensor, eligible: torch.Tensor):
+        """Deterministic action (argmax over the masked logits) for evaluation. DQN is evaluated
+        fully greedy too (epsilon=0), so both algorithms use the same mode."""
         logits, _ = self.forward(x)
-        return logits.argmax(dim=-1)
+        return mask_switch_logits(logits, eligible).argmax(dim=-1)
 
 
 class RolloutBuffer:
@@ -72,16 +83,18 @@ class RolloutBuffer:
         self.log_probs = np.zeros((horizon, n_agents), dtype=np.float32)
         self.values = np.zeros((horizon, n_agents), dtype=np.float32)
         self.rewards = np.zeros((horizon, n_agents), dtype=np.float32)
+        self.eligible = np.zeros((horizon, n_agents), dtype=bool)  # could this junction switch at this step?
         self.dones = np.zeros((horizon, n_agents), dtype=np.float32)
         self.ptr = 0
 
-    def add(self, obs, actions, log_probs, values, rewards, done):
+    def add(self, obs, actions, log_probs, values, rewards, done, eligible):
         t = self.ptr
         self.obs[t] = obs
         self.actions[t] = actions
         self.log_probs[t] = log_probs
         self.values[t] = values
         self.rewards[t] = rewards
+        self.eligible[t] = eligible
         self.dones[t] = done  # same scalar `done` broadcast to all agents:
         # the environment resets globally, so every junction's episode
         # boundary is simultaneous -- there is no per-agent-only done.
@@ -114,7 +127,8 @@ class RolloutBuffer:
         b_log_probs = self.log_probs.reshape(-1)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
-        return b_obs, b_actions, b_log_probs, b_advantages, b_returns
+        b_eligible = self.eligible.reshape(-1)
+        return b_obs, b_actions, b_log_probs, b_advantages, b_returns, b_eligible
 
     def reset(self):
         self.ptr = 0

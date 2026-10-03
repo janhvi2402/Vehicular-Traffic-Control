@@ -21,6 +21,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from environment.eligibility import eligibility_from_features
+
 
 class QNetwork(nn.Module):
     """Maps one junction's local 11-dim observation to Q(hold), Q(switch).
@@ -84,16 +86,35 @@ class ReplayBuffer:
         return obs, actions, rewards, next_obs, dones
 
 
+def dqn_targets(target_net, rewards, next_obs, dones, gamma, next_eligible):
+    """Bellman targets r + gamma * max_a' Q_target(s', a') * (1 - done). Where the next state is
+    ineligible (yellow, or elapsed < min_green) only 'hold' can be executed there, so the
+    bootstrap uses Q_target(s', hold) alone instead of the max over both actions.
+    next_eligible: bool tensor (batch,)."""
+    with torch.no_grad():
+        nq = target_net(next_obs)
+        next_q = torch.where(next_eligible, nq.max(dim=1).values, nq[:, 0])
+        return rewards + gamma * next_q * (1.0 - dones)
+
+
 def select_actions_epsilon_greedy(
-    q_net: QNetwork, node_features: np.ndarray, epsilon: float, rng: np.random.Generator, device: str
+    q_net: QNetwork, node_features: np.ndarray, epsilon: float, rng: np.random.Generator, device: str,
+    eligible: np.ndarray | None = None,
 ) -> np.ndarray:
     """Epsilon-greedy action selection applied independently to every
     junction using the ONE shared Q-network (parameter-sharing /
     independent-DQN scaling described in USAGE.md). node_features has
     shape (n_agents, input_dim). Returns an (n_agents,) int array, ready
     to hand directly to TrafficGridEnv.step() as the signal-vote portion
-    of the action."""
+    of the action.
+
+    Returns the EXECUTED action: an ineligible junction (yellow, or elapsed < min_green) is
+    always forced to hold (0), during exploration as well as greedy selection, and its
+    switch Q-value is excluded from the argmax. `eligible` is a bool (n_agents,) array;
+    if omitted it is derived from node_features with the env's default min/max green."""
     n_agents = node_features.shape[0]
+    if eligible is None:
+        eligible = eligibility_from_features(node_features)
     actions = np.zeros(n_agents, dtype=np.int64)
     explore_mask = rng.random(n_agents) < epsilon
     n_explore = int(explore_mask.sum())
@@ -103,7 +124,9 @@ def select_actions_epsilon_greedy(
     if n_greedy > 0:
         with torch.no_grad():
             x = torch.as_tensor(node_features[~explore_mask], dtype=torch.float32, device=device)
-            q_values = q_net(x)
+            q_values = q_net(x).clone()
+            q_values[torch.as_tensor(~eligible[~explore_mask], device=device), 1] = float("-inf")
             greedy_actions = q_values.argmax(dim=1).cpu().numpy()
         actions[~explore_mask] = greedy_actions
+    actions[~eligible] = 0
     return actions

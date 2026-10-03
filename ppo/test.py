@@ -28,6 +28,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from ppo.config import PPOConfig  # noqa: E402
+from environment.eligibility import eligibility_from_features  # noqa: E402
 from ppo.actor_critic import ActorCritic  # noqa: E402
 
 DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "actor_critic_final.pt")
@@ -44,10 +45,11 @@ def run_episode(net, env, seed, device, greedy=True):
     steps = 0
     while True:
         x = torch.as_tensor(obs["node_features"], dtype=torch.float32, device=device)
+        elig = torch.as_tensor(eligibility_from_features(obs["node_features"]), device=device)
         if greedy:
-            actions = net.act_greedy(x).cpu().numpy()
+            actions = net.act_greedy(x, elig).cpu().numpy()
         else:
-            actions, _, _ = net.act(x)
+            actions, _, _ = net.act(x, elig)
             actions = actions.cpu().numpy()
         obs, reward, terminated, truncated, info = env.step(actions)
         total_reward += reward

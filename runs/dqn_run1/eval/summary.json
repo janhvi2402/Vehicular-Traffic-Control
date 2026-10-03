@@ -1,0 +1,140 @@
+{
+  "algo": {
+    "total_reward": {
+      "mean": -998.0924515329301,
+      "std": 32.19467692413548
+    },
+    "mean_waiting_time": {
+      "mean": 103.78694444444446,
+      "std": 0.9152325060461172
+    },
+    "final_step_waiting_time": {
+      "mean": 117.2,
+      "std": 34.458090486850836
+    },
+    "throughput": {
+      "mean": 3779.0,
+      "std": 3.82099463490856
+    },
+    "mean_queue_length": {
+      "mean": 18.5125,
+      "std": 0.16530578660899775
+    },
+    "n_switch_votes": {
+      "mean": 3735.6,
+      "std": 39.35784546948676
+    },
+    "n_forced_switches": {
+      "mean": 39.5,
+      "std": 3.383784863137726
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "dqn": {
+    "total_reward": {
+      "mean": -998.0924515329301,
+      "std": 32.19467692413548
+    },
+    "mean_waiting_time": {
+      "mean": 103.78694444444446,
+      "std": 0.9152325060461172
+    },
+    "final_step_waiting_time": {
+      "mean": 117.2,
+      "std": 34.458090486850836
+    },
+    "throughput": {
+      "mean": 3779.0,
+      "std": 3.82099463490856
+    },
+    "mean_queue_length": {
+      "mean": 18.5125,
+      "std": 0.16530578660899775
+    },
+    "n_switch_votes": {
+      "mean": 3735.6,
+      "std": 39.35784546948676
+    },
+    "n_forced_switches": {
+      "mean": 39.5,
+      "std": 3.383784863137726
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "random": {
+    "total_reward": {
+      "mean": -1213.1334845557808,
+      "std": 100.0067256997358
+    },
+    "mean_waiting_time": {
+      "mean": 239.25041666666667,
+      "std": 6.720701878407187
+    },
+    "final_step_waiting_time": {
+      "mean": 266.7,
+      "std": 100.78199243912574
+    },
+    "throughput": {
+      "mean": 3768.8,
+      "std": 5.4
+    },
+    "mean_queue_length": {
+      "mean": 26.522916666666664,
+      "std": 0.3524808735289097
+    },
+    "n_switch_votes": {
+      "mean": 5751.1,
+      "std": 58.251952756967725
+    },
+    "n_forced_switches": {
+      "mean": 6.6,
+      "std": 2.154065922853802
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle": {
+    "total_reward": {
+      "mean": -941.4979062438011,
+      "std": 23.243278693482065
+    },
+    "mean_waiting_time": {
+      "mean": 151.15208333333334,
+      "std": 0.8732712750957794
+    },
+    "final_step_waiting_time": {
+      "mean": 77.5,
+      "std": 23.243278598338918
+    },
+    "throughput": {
+      "mean": 3774.0,
+      "std": 2.23606797749979
+    },
+    "mean_queue_length": {
+      "mean": 22.525138888888893,
+      "std": 0.10899274030077234
+    },
+    "n_switch_votes": {
+      "mean": 2880.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle_seconds_used": 15,
+  "normalized_performance_pct_vs_fixed_cycle": 79.16526780445201
+}

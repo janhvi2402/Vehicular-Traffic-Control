@@ -89,8 +89,9 @@ class GridEnvConfig:
     min_green: int = 10                        # seconds before a switch vote is honored
     yellow_time: int = 4                       # must match the yellow phases baked into the .net.xml
     max_green: int = 90                        # used only to normalize the "elapsed phase time" feature
-    switch_penalty: float = 0.3                # discourages needless flip-flopping
-    wasted_vote_penalty: float = 0.03           # small penalty for voting switch while ineligible
+    lambda_s: float = 0.3                      # cost per executed phase change (voted OR forced max_green; both burn yellow time)
+    lambda_w: float = 0.0                      # cost per wasted vote; 0 because algorithms mask ineligible votes
+    reward_mode: str = "delta_wait"            # "delta_wait" (default) or "queue_wait_absolute"; see step()
     waiting_speed_threshold: float = 0.1        # m/s; matches SUMO's own "halting" definition --
                                                  # a vehicle below this speed counts as waiting,
                                                  # used only for the per-vehicle wait tracking below
@@ -98,6 +99,10 @@ class GridEnvConfig:
     routing_k: int = 3                         # candidate downstream edges considered per decision edge
     routing_interval: int = 10                 # seconds between rerouting passes
     seed: int = 0
+
+    def __post_init__(self):
+        if self.reward_mode not in ("delta_wait", "queue_wait_absolute"):
+            raise ValueError(f"reward_mode must be 'delta_wait' or 'queue_wait_absolute', got {self.reward_mode!r}")
 
 
 # --------------------------------------------------------------------------- #
@@ -142,6 +147,7 @@ class TrafficGridEnv(gym.Env):
         self._sumo_started = False
         self._episode_step = 0
         self._episode_arrived = 0
+        self._episode_teleports = 0  # vehicles SUMO teleported (--time-to-teleport 300) this episode
 
         # ---- Static topology discovery (no TraCI connection needed yet) ----
         net = sumolib.net.readNet(self.cfg.net_file)
@@ -257,6 +263,7 @@ class TrafficGridEnv(gym.Env):
         self._sumo_started = True
         self._episode_step = 0
         self._episode_arrived = 0
+        self._episode_teleports = 0  # vehicles SUMO teleported (--time-to-teleport 300) this episode
         self._time_in_phase[:] = 0.0
         self._rerouted_this_pass.clear()
         self._veh_wait_accum = {}
@@ -300,17 +307,26 @@ class TrafficGridEnv(gym.Env):
             # one. Summing it after every individual tick is the only way
             # to not undercount.
             self._episode_arrived += traci.simulation.getArrivedNumber()
+            self._episode_teleports += traci.simulation.getStartingTeleportNumber()
         self._episode_step += self.cfg.decision_interval
 
         wait_now = self._per_junction_waiting()
-        agent_rewards = self._prev_wait - wait_now  # positive = less waiting than before
-        agent_rewards -= self.cfg.switch_penalty * (signal_votes == 1) * (~wasted_votes)
-        agent_rewards -= self.cfg.wasted_vote_penalty * wasted_votes
+        queue_now = self._per_junction_queue()
+        # a phase change executed this step = honored voted switch OR forced max_green switch
+        # (both cost yellow time, so neither is free)
+        phase_change = self._step_honored | forced_switches
+        if self.cfg.reward_mode == "delta_wait":
+            # r_i = (w_i(t-1) - w_i(t)) - lambda_s*[phase change] - lambda_w*[wasted vote]
+            agent_rewards = self._prev_wait - wait_now  # positive = less waiting than before
+            agent_rewards = agent_rewards - self.cfg.lambda_s * phase_change - self.cfg.lambda_w * wasted_votes
+        else:
+            # "queue_wait_absolute": r_i = -0.01*(0.5*q_i + 0.5*w_i) - lambda_s*[phase change]
+            # (raw, uncapped per-junction queue / waiting time). Not used unless explicitly requested.
+            agent_rewards = -0.01 * (0.5 * queue_now + 0.5 * wait_now) - self.cfg.lambda_s * phase_change
         self._prev_wait = wait_now
 
         reward = float(np.sum(agent_rewards))
         obs = self._get_obs()
-        queue_now = self._per_junction_queue()
 
         terminated = False
         truncated = self._episode_step >= self.cfg.episode_seconds or traci.simulation.getMinExpectedNumber() <= 0
@@ -349,7 +365,22 @@ class TrafficGridEnv(gym.Env):
             # expects a whole-episode total; a per-step reset here would
             # silently reintroduce the undercount for them.
             "throughput": self._episode_arrived,
+            # cumulative this episode: vehicles teleported by SUMO after 300 s stuck (hides gridlock if > 0)
+            "n_teleports": self._episode_teleports,
+            # True iff the episode ended before episode_seconds because the network emptied
+            "ended_early": bool(truncated and self._episode_step < self.cfg.episode_seconds),
             "forced_switches": forced_switches,
+            # per-junction, THIS step only: vote==1 and eligible, so the env executed it
+            "honored_switches": self._step_honored.astype(np.int64),
+            # the action the env actually executed per junction: 1 iff vote==1 AND eligible
+            # (not yellow, elapsed >= min_green). Ineligible votes show up here as 0. Store THIS,
+            # not the raw vote, in replay / rollout buffers. Forced max_green switches are not
+            # actions and are reported separately in info["forced_switches"].
+            "executed_actions": self._step_honored.astype(np.int64),
+            # greens that ended on this step: dicts {junction, start, end, ended_by_forced}
+            # (sim seconds). Yellow follows each one for cfg.yellow_time. The env keeps
+            # nothing on disk; consumers accumulate these in memory.
+            "completed_greens": list(self._step_green_events),
         }
         return obs, reward, terminated, truncated, info
 
@@ -421,6 +452,9 @@ class TrafficGridEnv(gym.Env):
         """
         wasted = np.zeros(self.n_agents, dtype=bool)
         forced = np.zeros(self.n_agents, dtype=bool)
+        self._step_honored = np.zeros(self.n_agents, dtype=bool)   # voted AND eligible -> executed
+        self._step_green_events = []                                # greens that ended on this call
+        t_now = float(traci.simulation.getTime())
         for i, tid in enumerate(self.tl_ids):
             is_yellow = "y" in traci.trafficlight.getRedYellowGreenState(tid).lower()
             eligible = (not is_yellow) and (self._time_in_phase[i] >= self.cfg.min_green)
@@ -435,6 +469,15 @@ class TrafficGridEnv(gym.Env):
                 forced[i] = True
 
             if switching_by_vote or must_force:
+                self._step_honored[i] = switching_by_vote
+                # _time_in_phase is green-only elapsed time here (reset to 0 when yellow ends),
+                # so the green began at t_now - _time_in_phase and ends now; yellow follows.
+                self._step_green_events.append({
+                    "junction": tid,
+                    "start": t_now - float(self._time_in_phase[i]),
+                    "end": t_now,
+                    "ended_by_forced": bool(must_force),
+                })
                 phase = traci.trafficlight.getPhase(tid)
                 n_phases = len(traci.trafficlight.getAllProgramLogics(tid)[0].phases)
                 next_phase = (phase + 1) % n_phases  # green -> its paired yellow phase

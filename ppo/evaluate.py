@@ -45,6 +45,7 @@ from environment.eval_common import (  # noqa: E402
     build_results_table, print_results_table, save_results_table_csv,
 )
 from ppo.config import PPOConfig  # noqa: E402
+from environment.eligibility import eligibility_from_features  # noqa: E402
 from ppo.actor_critic import ActorCritic  # noqa: E402
 
 DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "actor_critic_final.pt")
@@ -56,9 +57,10 @@ DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "eval")
 def ppo_policy_fn(net, device, greedy=True):
     def _policy(obs):
         x = torch.as_tensor(obs["node_features"], dtype=torch.float32, device=device)
+        elig = torch.as_tensor(eligibility_from_features(obs["node_features"]), device=device)
         if greedy:
-            return net.act_greedy(x).cpu().numpy()
-        actions, _, _ = net.act(x)
+            return net.act_greedy(x, elig).cpu().numpy()
+        actions, _, _ = net.act(x, elig)
         return actions.cpu().numpy()
     return _policy
 

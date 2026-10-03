@@ -46,7 +46,10 @@ def fixed_cycle_policy_fn(fixed_cycle_seconds: float, max_green: float):
 # Episode runner (shared by every policy, for a fair comparison)
 # --------------------------------------------------------------------------- #
 
-def run_episode(env, policy_fn, seed):
+def run_episode(env, policy_fn, seed, return_events=False):
+    """Runs one episode. Returns the metrics dict; with return_events=True returns
+    (metrics, completed_green_events) where each event is
+    {"junction", "start", "end", "ended_by_forced"} (for green-duration histograms)."""
     obs, _ = env.reset(seed=seed)
     total_reward = 0.0
     n_switch_votes = 0
@@ -54,12 +57,16 @@ def run_episode(env, policy_fn, seed):
     queue_sum = 0.0
     wait_sum = 0.0
     n_steps = 0
+    greens = []
     while True:
         actions = policy_fn(obs)
         obs, reward, terminated, truncated, info = env.step(actions)
         total_reward += reward
-        n_switch_votes += int(np.sum(actions))
+        # votes the env actually executed (vote == 1 AND eligible). Raw votes of ineligible
+        # junctions are ignored by the env and are not counted here.
+        n_switch_votes += int(np.sum(info["executed_actions"]))
         n_forced += int(info["forced_switches"].sum())
+        greens.extend(info["completed_greens"])
         # UNCAPPED grid totals from info, not reconstructed from
         # node_features. node_features[:, 0:4]/[:, 4:8] are clipped to
         # [0,1] before *_NORM in _get_obs() (see TrafficGridEnv), so
@@ -76,7 +83,10 @@ def run_episode(env, policy_fn, seed):
         n_steps += 1
         if terminated or truncated:
             break
-    return {
+    durations = np.array([g["end"] - g["start"] for g in greens], dtype=np.float64)
+    n_greens = len(greens)
+    n_at_max = int((durations >= env.cfg.max_green).sum()) if n_greens else 0
+    row = {
         "total_reward": total_reward,
         # averaged over every decision step in the episode, NOT a final-step
         # snapshot -- a policy can't look artificially good by draining the
@@ -101,7 +111,16 @@ def run_episode(env, policy_fn, seed):
         "mean_vehicle_wait": info["mean_vehicle_wait"],
         "max_vehicle_wait": info["max_vehicle_wait"],
         "n_vehicles_completed": info["n_vehicles_completed"],
+        # environment health: SUMO teleports (--time-to-teleport 300) hide gridlock; ended_early (0/1) means the
+        # network emptied before episode_seconds, so episode lengths differ between policies
+        "n_teleports": info["n_teleports"],
+        "ended_early": float(info["ended_early"]),
+        # switching-shortcut diagnostics: greens that ended (by vote or forced) and the share of those whose
+        # duration reached max_green ("never vote, let max_green switch" would push this toward 1)
+        "n_greens": n_greens,
+        "share_greens_at_max_green": (n_at_max / n_greens) if n_greens else 0.0,
     }
+    return (row, greens) if return_events else row
 
 
 def run_policy_over_seeds(env, policy_fn, seeds):

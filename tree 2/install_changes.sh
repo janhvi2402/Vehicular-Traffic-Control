@@ -11,7 +11,7 @@ done < <(cd "$T" && find environment dqn ppo diagnostics tests scripts docs -typ
 for d in environment dqn ppo diagnostics; do [ -f "$d/__init__.py" ] || { touch "$d/__init__.py"; echo "created $d/__init__.py"; }; done
 chmod +x scripts/smoke_test.sh
 [ -f dqn/analyze_switching_behavior.py ] && git rm -q dqn/analyze_switching_behavior.py && echo "removed dqn/analyze_switching_behavior.py (replaced by diagnostics/)"
-python scripts/make_scaled_routes.py --in sumo_4x4_network/routes.rou.xml --factor 1.5 --out sumo_4x4_network/routes_x1.5.rou.xml
-python scripts/make_scaled_routes.py --in sumo_4x4_network/routes.rou.xml --factor 2.0 --out sumo_4x4_network/routes_x2.0.rou.xml
+python3 scripts/make_scaled_routes.py --in sumo_4x4_network/routes.rou.xml --factor 1.5 --out sumo_4x4_network/routes_x1.5.rou.xml
+python3 scripts/make_scaled_routes.py --in sumo_4x4_network/routes.rou.xml --factor 2.0 --out sumo_4x4_network/routes_x2.0.rou.xml
 echo; echo "Next:  python tests/test_masking.py     (expect 9 PASS)"
 echo "       git diff -- dqn/train.py ppo/train.py environment/eval_common.py   (review, then paste to me)"
