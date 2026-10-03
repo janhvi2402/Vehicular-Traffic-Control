@@ -7,3 +7,7 @@ tls_changes*.zip
 tree/
 tree 2/
 tls_changes*.zip
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
