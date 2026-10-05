@@ -63,7 +63,7 @@ from environment.eval_common import (  # noqa: E402
 from dqn.config import DQNConfig  # noqa: E402
 from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
 from environment.eval_common import (  # noqa: E402
-    random_policy_fn, fixed_cycle_policy_fn, always_switch_policy_fn, run_episode)
+    random_policy_fn, fixed_cycle_policy_fn, always_switch_policy_fn, max_pressure_policy_fn, run_episode)
 # ------------------------------------------------------------------ #
 # EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
 # ------------------------------------------------------------------ #
@@ -184,10 +184,13 @@ def main():
     print("Fixed-cycle baseline done.")
     always_rows = run_policy_over_seeds(env, always_switch_policy_fn(env.n_agents), seeds)
     print("Always-switch baseline done.")
+    maxp_rows = run_policy_over_seeds(env, max_pressure_policy_fn(), seeds)
+    print("Max-pressure baseline done.")
     env.close()
 
     summaries = {
         "always_switch": summarize(always_rows),
+        "max_pressure": summarize(maxp_rows),
         "algo": summarize(dqn_rows),
         "dqn": summarize(dqn_rows),  # kept for backward-compatible key name in this script's own output
         "random": summarize(random_rows),
@@ -206,7 +209,8 @@ def main():
     summaries["normalized_performance_pct_vs_fixed_cycle"] = normalized_pct
 
     # ---- save raw per-episode rows + summary ----
-    for name, rows in [("ppo", dqn_rows), ("random", random_rows), ("fixed_cycle", fixed_rows), ("always_switch", always_rows)]:
+    for name, rows in [("dqn", dqn_rows), ("random", random_rows), ("fixed_cycle", fixed_rows),
+                       ("always_switch", always_rows), ("max_pressure", maxp_rows)]:
         with open(os.path.join(args.out, f"{name}_episodes.csv"), "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()

@@ -149,10 +149,10 @@ def plot_comparison(summaries: dict, out_dir: str, algo_name: str = "DQN"):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    has_always = "always_switch" in summaries
-    policies = ["random", "fixed_cycle"] + (["always_switch"] if has_always else []) + ["algo"]
-    labels = ["Random", "Fixed-cycle"] + (["Always-switch"] if has_always else []) + [algo_name]
-    colors = ["#993556", "#854F0B"] + (["#5A5A5A"] if has_always else []) + ["#0F6E56"]
+    extras = [(k, lab, c) for k, lab, c in EXTRA_BASELINES if k in summaries]
+    policies = ["random", "fixed_cycle"] + [k for k, _, _ in extras] + ["algo"]
+    labels = ["Random", "Fixed-cycle"] + [lab for _, lab, _ in extras] + [algo_name]
+    colors = ["#993556", "#854F0B"] + [c for _, _, c in extras] + ["#0F6E56"]
     metrics = [
         ("mean_waiting_time", "Mean waiting time per step (s)\n(grid-wide, per-step sum)"),
         ("mean_vehicle_wait", "Mean wait per vehicle (s)\n(per-vehicle, whole trip)"),
@@ -207,8 +207,7 @@ def build_results_table(summaries: dict, algo_name: str = "DQN", metric: str = "
     number, see grid_env.py's _update_vehicle_wait_tracking docstring."""
     baseline_mean = summaries["fixed_cycle"][metric]["mean"]
     order = [("fixed_cycle", "Fixed-Time Baseline"), ("random", "Random")]
-    if "always_switch" in summaries:
-        order.append(("always_switch", "Always-switch"))
+    order += [(k, lab) for k, lab, _ in EXTRA_BASELINES if k in summaries]
     order.append(("algo", algo_name))
     rows = []
     for key, label in order:
@@ -310,6 +309,28 @@ def plot_multi_algo_comparison(rows, out_path, metric_label: str = "Avg. Waiting
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"Saved: {out_path}")
+
+# extra baselines that evaluate.py may add to summaries: (summary key, table/plot label, plot colour)
+EXTRA_BASELINES = [("always_switch", "Always-switch", "#5A5A5A"), ("max_pressure", "Max-pressure", "#7A4FA0")]
+
+
+def max_pressure_policy_fn(queue_norm: float = 20.0, margin: float = 0.0):
+    """Queue-based max-pressure, per junction: vote to switch iff (queue on the waiting approaches) >
+    (queue on the served approaches) + margin. node_features[:, 0:4] = queue / queue_norm for N, E, S, W,
+    clipped at 1, so each approach saturates at queue_norm vehicles. Phase 0 serves E+W and phase 2 serves
+    N+S (verified against grid4x4.net.xml for all 16 junctions); during yellow the vote is ignored by the env.
+    No downstream/neighbour term (local features only, like the learned policies). margin=0 is the untuned
+    definition; on seed 1000 larger margins were monotonically worse (see scripts/max_pressure_probe.py)."""
+    def _policy(obs):
+        f = obs["node_features"]
+        q = f[:, 0:4] * queue_norm
+        ew, ns = q[:, 1] + q[:, 3], q[:, 0] + q[:, 2]
+        phase = np.rint(f[:, 8] * 3).astype(int)
+        served = np.where(phase == 0, ew, ns)
+        waiting = np.where(phase == 0, ns, ew)
+        return (waiting > served + margin).astype(np.int64)
+    return _policy
+
 
 def always_switch_policy_fn(n_agents):
     """Votes to switch at every opportunity; the env ignores ineligible votes, so this switches at min green."""

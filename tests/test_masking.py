@@ -326,17 +326,31 @@ def test_run_episode_health_and_green_metrics():
         assert row["ended_early"] in (0.0, 1.0) and row["n_teleports"] >= 0
         assert row["n_greens"] == len(greens) == row["n_switch_votes"] + row["n_forced_switches"] > 0
         durs = np.array([g["end"] - g["start"] for g in greens])
-        assert row["share_greens_at_max_green"] == float((durs >= env.cfg.max_green).sum()) / len(durs)
+        assert row["share_greens_at_max_green"] == sum(g["ended_by_forced"] for g in greens) / len(greens)
         assert durs.min() >= env.cfg.min_green and durs.max() <= env.cfg.max_green
     finally:
         env.close()
+
+
+def test_max_pressure_policy_logic():
+    from environment.eval_common import max_pressure_policy_fn
+    f = np.zeros((4, 11), dtype=np.float32)
+    f[:, 8] = [0.0, 0.0, 2 / 3, 2 / 3]                           # phase 0 (E+W green) x2, phase 2 (N+S green) x2
+    f[0, 0:4] = np.array([5, 1, 5, 1]) / 20                      # N,E,S,W: waiting N+S=10 > served E+W=2  -> switch
+    f[1, 0:4] = np.array([1, 5, 1, 5]) / 20                      # waiting 2 < served 10                   -> hold
+    f[2, 0:4] = np.array([1, 5, 1, 5]) / 20                      # phase 2 serves N+S=2, waiting E+W=10    -> switch
+    f[3, 0:4] = np.array([5, 1, 5, 1]) / 20                      # served N+S=10 > waiting 2               -> hold
+    assert max_pressure_policy_fn(20.0, 0.0)({"node_features": f}).tolist() == [1, 0, 1, 0]
+    assert max_pressure_policy_fn(20.0, 7.0)({"node_features": f}).tolist() == [1, 0, 1, 0]   # 10 > 2 + 7
+    assert max_pressure_policy_fn(20.0, 8.0)({"node_features": f}).tolist() == [0, 0, 0, 0]   # 10 > 2 + 8 is false (strict)
 
 
 TESTS = [test_eligibility_matches_action_mask, test_ineligible_rows_always_hold_dqn_and_ppo,
          test_replay_stores_executed_action_and_target_mask_wired, test_dqn_target_ineligible_uses_hold_only,
          test_ppo_switch_probability_zero_when_ineligible,
          test_ppo_reproducible_from_seed, test_training_seeds_disjoint,
-         test_trainers_use_seed_scheme_and_log_new_columns, test_run_episode_health_and_green_metrics]
+         test_trainers_use_seed_scheme_and_log_new_columns, test_run_episode_health_and_green_metrics,
+         test_max_pressure_policy_logic]
 
 if __name__ == "__main__":
     failed = 0
