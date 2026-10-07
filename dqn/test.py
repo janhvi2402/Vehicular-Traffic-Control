@@ -59,7 +59,7 @@ def run_episode(q_net, env, epsilon, seed, device, rng):
         actions = select_actions_epsilon_greedy(q_net, obs["node_features"], epsilon, rng, device)
         obs, reward, terminated, truncated, info = env.step(actions)
         total_reward += reward
-        n_switches += int(actions.sum())
+        n_switches += int(info["executed_actions"].sum())
         n_forced += int(info["forced_switches"].sum())
         # UNCAPPED, from TrafficGridEnv's own accumulator -- NOT
         # obs["node_features"][:, 4:8].sum()*env.WAIT_NORM, which is
@@ -102,7 +102,7 @@ def main():
     # dqn/evaluate.py vs ppo/evaluate.py is an apples-to-apples
     # comparison. Pass --eval_epsilon 0.0 here if you specifically want
     # this script's output to be greedy-comparable to ppo/test.py anyway.
-    parser.add_argument("--eval_epsilon", type=float, default=0.05,
+    parser.add_argument("--eval_epsilon", type=float, default=0.0,
                          help="epsilon for epsilon-greedy action selection. Default 0.05 "
                               "matches Mnih et al.'s evaluation protocol for this single-"
                               "checkpoint sanity check -- see the note above this argument "

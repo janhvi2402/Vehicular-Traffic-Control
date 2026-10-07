@@ -53,7 +53,7 @@ def run_episode(net, env, seed, device, greedy=True):
             actions = actions.cpu().numpy()
         obs, reward, terminated, truncated, info = env.step(actions)
         total_reward += reward
-        n_switches += int(actions.sum())
+        n_switches += int(info["executed_actions"].sum())
         n_forced += int(info["forced_switches"].sum())
         # UNCAPPED, from TrafficGridEnv's own accumulator -- NOT
         # obs["node_features"][:, 4:8].sum()*env.WAIT_NORM, which is
