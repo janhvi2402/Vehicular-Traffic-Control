@@ -7,7 +7,7 @@ a checkpoint loads and behaves sensibly (no crashes, reasonable waiting
 times, plausible switch counts) before running the full evaluation.
 
 Usage (from a terminal, if you have one):
-    python -m dqn.test --checkpoint runs/dqn_run_matched500/qnet_final.pt
+    python -m dqn.test --checkpoint runs/dqn_seed0/qnet_final.pt
 
 Or just press the "Run Python File" / Play button in VS Code with no
 arguments at all -- every argument below has a hardcoded default (edit
@@ -43,7 +43,7 @@ from dqn.q_network import QNetwork, select_actions_epsilon_greedy  # noqa: E402
 # ------------------------------------------------------------------ #
 # EDIT THESE IF YOUR FILES LIVE SOMEWHERE ELSE
 # ------------------------------------------------------------------ #
-DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_run_matched500", "qnet_final.pt")
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "dqn_seed0", "qnet_final.pt")
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
 
@@ -92,23 +92,9 @@ def main():
     parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
     parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
     parser.add_argument("--seed", type=int, default=123)
-    # NOTE: default 0.05 deliberately keeps Mnih et al.'s original
-    # evaluation protocol for this quick sanity check -- unlike
-    # dqn/evaluate.py, which defaults to 0.0 specifically so its numbers
-    # are fair to compare against ppo/evaluate.py (see the fairness note
-    # there). ppo/test.py is always fully greedy with no such flag, so
-    # DO NOT compare this script's printed numbers against ppo/test.py's
-    # -- they use different exploration noise by default. Only
-    # dqn/evaluate.py vs ppo/evaluate.py is an apples-to-apples
-    # comparison. Pass --eval_epsilon 0.0 here if you specifically want
-    # this script's output to be greedy-comparable to ppo/test.py anyway.
+    # Default 0.0 = fully greedy, identical to dqn/evaluate.py and ppo/test.py. Pass 0.05 for Mnih et al.'s original protocol.
     parser.add_argument("--eval_epsilon", type=float, default=0.0,
-                         help="epsilon for epsilon-greedy action selection. Default 0.05 "
-                              "matches Mnih et al.'s evaluation protocol for this single-"
-                              "checkpoint sanity check -- see the note above this argument "
-                              "for why this differs from dqn/evaluate.py's default and why "
-                              "you shouldn't compare this script's output directly against "
-                              "ppo/test.py's without passing --eval_epsilon 0.0.")
+                         help="epsilon for epsilon-greedy action selection (default 0.0 = greedy; 0.05 = Mnih et al. protocol).")
     parser.add_argument("--gui", action="store_true")
     # parse_known_args (not parse_args) so the script never errors out when
     # VS Code's Play button runs it with zero arguments.
@@ -117,7 +103,7 @@ def main():
     if not os.path.exists(args.checkpoint):
         print(f"ERROR: checkpoint not found at:\n  {args.checkpoint}\n"
               f"Edit DEFAULT_CHECKPOINT near the top of this file to point at your "
-              f"actual checkpoint (e.g. runs/dqn_run_matched500/qnet_final.pt), or pass "
+              f"actual checkpoint (e.g. runs/dqn_seed0/qnet_final.pt), or pass "
               f"--checkpoint <path> if you're running from a terminal.")
         sys.exit(1)
 

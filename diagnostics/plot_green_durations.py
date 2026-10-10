@@ -7,6 +7,8 @@ Footer prints both checkpoint paths, the seed and the env-file hash.
   python -m diagnostics.plot_green_durations --checkpoint_dqn runs/dqn_seed0/qnet_final.pt \
          --checkpoint_ppo runs/ppo_seed0/actor_critic_final.pt --seed 1000
 """
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # Play button: find project root
 import argparse
 import os
 import numpy as np
@@ -14,13 +16,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from diagnostics.diag_common import (DEFAULT_NET, DEFAULT_ROUTE, file_hash, load_policy, make_env,
+from diagnostics.diag_common import (DEFAULT_CHECKPOINTS, DEFAULT_NET, DEFAULT_ROUTE, file_hash, load_policy, make_env,
                                      run_logged_episode)
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--checkpoint_dqn", required=True); p.add_argument("--checkpoint_ppo", required=True)
+    p.add_argument("--checkpoint_dqn", default=DEFAULT_CHECKPOINTS["dqn"]); p.add_argument("--checkpoint_ppo", default=DEFAULT_CHECKPOINTS["ppo"])
     p.add_argument("--seed", type=int, default=1000)
     p.add_argument("--net_file", default=DEFAULT_NET); p.add_argument("--route_file", default=DEFAULT_ROUTE)
     p.add_argument("--out", default=None)
@@ -43,9 +45,9 @@ def main():
         g = log["greens"]
         dur = np.array([e["end"] - e["start"] for e in g]); forced = np.array([e["ended_by_forced"] for e in g], dtype=bool)
         ax.hist(dur, bins=bins, color=color)
-        ax.set_title(f"{algo.upper()}: {len(g)} greens, {int((dur >= ecfg.max_green).sum())} at max_green, {int(forced.sum())} forced")
+        ax.set_title(f"{algo.upper()}: {len(g)} greens, {int(forced.sum())} forced at the cap (longest {int(dur.max())} s)")
         ax.set_xlabel("green duration (s)"); ax.set_xlim(ecfg.min_green - 1, ecfg.max_green + 6)
-        n_at_max = int((dur >= ecfg.max_green).sum())
+        n_at_max = int(forced.sum())   # the env forces the switch at max_green - decision_interval + 1 (= 86 s), so dur >= 90 never happens
         per_j = [sum(1 for e in g if e["junction"] == t and not e["ended_by_forced"]) for t in tl_ids]
         print(f"{algo:5s}{len(g):8d}{len(g) - int(forced.sum()):8d}{int(forced.sum()):8d}{n_at_max:8d}{n_at_max / max(len(g), 1):11.3f}"
               f"{dur.mean():8.1f}{np.percentile(dur, 10):6.0f}{np.percentile(dur, 50):6.0f}{np.percentile(dur, 90):6.0f}"

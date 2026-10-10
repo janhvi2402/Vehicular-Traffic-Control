@@ -2,10 +2,11 @@
 import sys, os
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
 
-NET = os.environ.get("TLS_NET_FILE", "sumo_4x4_network/grid4x4.net.xml")
-ROUTE = os.environ.get("TLS_ROUTE_FILE", "sumo_4x4_network/routes.rou.xml")
+NET = os.environ.get("TLS_NET_FILE", os.path.join(_ROOT, "sumo_4x4_network", "grid4x4.net.xml"))
+ROUTE = os.environ.get("TLS_ROUTE_FILE", os.path.join(_ROOT, "sumo_4x4_network", "routes.rou.xml"))
 SECS = int(os.environ.get("VERIFY_SECS", 1200))
 
 

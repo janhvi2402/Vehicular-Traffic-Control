@@ -21,23 +21,26 @@ Adapted as follows from the paper's setting:
     simplification dqn/train.py makes for its optimizer)
 
 Usage:
-    python -m ppo.train --updates 500 --out runs/ppo_run_matched500
+    python -m ppo.train --updates 500 --out runs/ppo_seed0
 
     Or just hit Play/F5 with zero arguments -- every default below
-    already matches this (500 updates, runs/ppo_run_matched500).
+    already matches this (500 updates, runs/ppo_seed0).
     For a multi-seed run (recommended -- see config.py's disclosed
     limitations on single-seed comparisons), override --seed and --out
     per run, e.g.:
-        python -m ppo.train --seed 1 --out runs/ppo_run_matched500_seed1
-        python -m ppo.train --seed 2 --out runs/ppo_run_matched500_seed2
+        python -m ppo.train --seed 1 --out runs/ppo_seed1
+        python -m ppo.train --seed 2 --out runs/ppo_seed2
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
+import json
 import os
 import sys
+import time
 
 import numpy as np
 import torch
@@ -62,13 +65,15 @@ from ppo.actor_critic import ActorCritic, RolloutBuffer, mask_switch_logits  # n
 
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
-DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500")
+DEFAULT_SEED = 0   # Play button: EDIT THIS to train another seed. The output folder follows it: runs/ppo_seed<N>
 
 
 def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui: bool = False,
           resume_from: str | None = None, start_update: int = 0, start_episode: int = 0,
           chunk_updates: int | None = None):
     os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "config.json"), "w") as _cf:   # documents exactly what this run used
+        json.dump(dataclasses.asdict(cfg), _cf, indent=2)
     if chunk_updates is None:
         chunk_updates = cfg.total_updates - start_update
 
@@ -129,6 +134,7 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     # This variable is what the log line uses instead.
     last_completed_episode_reward = 0.0
     env_step = start_update * cfg.horizon
+    t0 = time.time()
 
     end_update = min(start_update + chunk_updates, cfg.total_updates)
     for update in range(start_update + 1, end_update + 1):
@@ -203,6 +209,7 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         b_log_probs_t = torch.as_tensor(b_log_probs, device=device)
         b_advantages_t = torch.as_tensor(b_advantages, device=device)
         b_returns_t = torch.as_tensor(b_returns, device=device)
+        ret_scale = max(float(b_returns.std()), 1.0) if cfg.scale_value_loss else 1.0   # value-loss scale only; GAE/advantages stay in raw units
         b_eligible_t = torch.as_tensor(b_eligible, device=device)
 
         dataset_size = len(b_obs)
@@ -222,7 +229,7 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
                 surr1 = ratio * mb_adv
                 surr2 = torch.clamp(ratio, 1 - cfg.clip_epsilon, 1 + cfg.clip_epsilon) * mb_adv
                 policy_loss = -torch.min(surr1, surr2).mean()  # L^CLIP, Eq. 7 (negated for gradient descent)
-                value_loss = (values_pred - b_returns_t[mb_idx]).pow(2).mean()  # L^VF, Eq. 9
+                value_loss = ((values_pred - b_returns_t[mb_idx]) / ret_scale).pow(2).mean()  # L^VF, Eq. 9 (ret_scale = 1 unless cfg.scale_value_loss)
 
                 loss = policy_loss + cfg.value_coeff * value_loss - cfg.entropy_coeff * entropy
 
@@ -239,7 +246,10 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
             print(
                 f"update {update:>5d} | env_step {env_step:>7d} | ep {episode:>4d} | "
                 f"episode_reward {last_completed_episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | "
-                f"policy_loss {last_policy_loss:+.4f} | value_loss {last_value_loss:.4f} | entropy {last_entropy:.4f}"
+                f"policy_loss {last_policy_loss:+.4f} | value_loss {last_value_loss:.4f} | entropy {last_entropy:.4f} | "
+                f"{(time.time() - t0) / 60:6.1f} min elapsed, ETA "
+                f"{(time.time() - t0) / max(update - start_update, 1) * (end_update - update) / 3600:5.2f} h",
+                flush=True,
             )
             row = [update, env_step, episode, last_completed_episode_reward, info["total_waiting_time"],
                    info["throughput"], last_policy_loss, last_value_loss, last_entropy,
@@ -257,6 +267,7 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
         json.dump({"update": end_update, "episode": episode, "done_training": end_update >= cfg.total_updates}, f)
     log_file.close()
     env.close()
+    print(f"Episodes completed: {episode} (expected {cfg.total_updates} for a full run)")
     print(f"Chunk complete: ran updates {start_update + 1}..{end_update} of {cfg.total_updates}. "
           f"Checkpoint: {os.path.join(out_dir, final_ckpt_name)}")
 
@@ -265,33 +276,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
     parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
-    parser.add_argument("--out", default=DEFAULT_OUT)
+    parser.add_argument("--out", default=None, help="default: runs/ppo_seed<seed>")
     parser.add_argument("--updates", type=int, default=None, help="override cfg.total_updates (grand total target)")
     parser.add_argument("--chunk_updates", type=int, default=None,
                          help="run only this many PPO updates in this invocation, then save and exit")
     parser.add_argument("--resume", default=None, help="path to a checkpoint (.pt) to resume weights from")
     parser.add_argument("--start_update", type=int, default=0)
     parser.add_argument("--start_episode", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=None,
-                         help="override cfg.seed (default: whatever PPOConfig() sets, currently "
-                              "42). Use this to train multiple seeds for the same budget, e.g. "
-                              "--seed 1 --out runs/ppo_run_matched500_seed1 -- a single training "
-                              "seed can't distinguish a real algorithmic difference from seed "
-                              "variance, so report results across at least a few seeds rather "
-                              "than one.")
+    parser.add_argument("--seed", type=int, default=None, help="training seed (default: DEFAULT_SEED at the top of this file)")
     parser.add_argument("--gui", action="store_true")
     # parse_known_args (not parse_args) so the VS Code Play button, which
     # passes zero arguments, never errors out here -- matches dqn/train.py.
     args, _unknown = parser.parse_known_args()
 
     cfg = PPOConfig()
-    if args.seed is not None:
-        cfg.seed = args.seed
+    cfg.seed = args.seed if args.seed is not None else DEFAULT_SEED
+    out_dir = args.out or os.path.join(PROJECT_ROOT, "runs", f"ppo_seed{cfg.seed}")
+    # protect a finished run: a second Play-button click must not silently overwrite hours of training
+    if not args.resume and os.path.exists(os.path.join(out_dir, "actor_critic_final.pt")):
+        sys.exit(f"STOP: {out_dir} already contains a finished run (actor_critic_final.pt).\n"
+                 f"Change DEFAULT_SEED (or pass --seed/--out), or delete that folder if you really want to retrain.")
     if args.updates is not None:
         cfg.total_updates = args.updates
 
     train(
-        cfg, args.net_file, args.route_file, args.out, use_gui=args.gui,
+        cfg, args.net_file, args.route_file, out_dir, use_gui=args.gui,
         resume_from=args.resume, start_update=args.start_update, start_episode=args.start_episode,
         chunk_updates=args.chunk_updates,
     )

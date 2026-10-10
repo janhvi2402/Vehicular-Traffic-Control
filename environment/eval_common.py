@@ -38,7 +38,7 @@ def fixed_cycle_policy_fn(fixed_cycle_seconds: float, max_green: float):
     def _policy(obs):
         elapsed_norm = obs["node_features"][:, 10]
         elapsed_seconds = elapsed_norm * max_green
-        return (elapsed_seconds >= fixed_cycle_seconds).astype(np.int64)
+        return (elapsed_seconds >= fixed_cycle_seconds - 1e-4).astype(np.int64)   # same float32 tolerance as eligibility.py
     return _policy
 
 

@@ -3,7 +3,7 @@ environment/eligibility.py
 Single definition of "this junction may execute a switch vote right now", shared by DQN and PPO:
     eligible = (not yellow) and (elapsed_green_seconds >= min_green)
 derived from TrafficGridEnv node_features: column 9 = yellow flag, column 10 = elapsed / max_green.
-This equals obs["action_mask"] exactly (verified by verify_step3.py). A 1e-4 s tolerance guards
+This equals obs["action_mask"] exactly (checked by tests/test_masking.py). A 1e-4 s tolerance guards
 against float32 error in feats[:,10] * max_green (observed error is ~4e-6 s).
 """
 import numpy as np

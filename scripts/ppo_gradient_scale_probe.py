@@ -1,11 +1,12 @@
 """Does the value loss swamp the policy gradient in PPO's shared trunk? (untrained net, one rollout, training-code math)"""
 import os, sys, numpy as np, torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
 from environment.eligibility import eligibility_from_features
 from ppo.actor_critic import ActorCritic, RolloutBuffer, mask_switch_logits
 from ppo.config import PPOConfig
-NET = os.environ.get("TLS_NET_FILE", "sumo_4x4_network/grid4x4.net.xml"); ROUTE = os.environ.get("TLS_ROUTE_FILE", "sumo_4x4_network/routes.rou.xml")
+NET = os.environ.get("TLS_NET_FILE", os.path.join(_ROOT, "sumo_4x4_network", "grid4x4.net.xml")); ROUTE = os.environ.get("TLS_ROUTE_FILE", os.path.join(_ROOT, "sumo_4x4_network", "routes.rou.xml"))
 torch.manual_seed(0); cfg = PPOConfig(); H = 200
 env = TrafficGridEnv(GridEnvConfig(net_file=NET, route_file=ROUTE, episode_seconds=1200)); net = ActorCritic(11, cfg.hidden_sizes, 2)
 buf = RolloutBuffer(H, env.n_agents, 11); obs, _ = env.reset(seed=1000); rews = []; raw = []

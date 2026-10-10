@@ -5,6 +5,8 @@ Grid-wide total queue length and total waiting time at every decision step of on
 
   python -m diagnostics.plot_congestion_timeseries --algo ppo --checkpoint runs/ppo_seed0/actor_critic_final.pt --seed 1000
 """
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # Play button: find project root
 import argparse
 import numpy as np
 import matplotlib

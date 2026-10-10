@@ -26,11 +26,16 @@ def count(env, policy, seed):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--algo", required=True, choices=["dqn", "ppo"]); p.add_argument("--checkpoint", required=True)
+    p.add_argument("--algo", default="dqn", choices=["dqn", "ppo"]); p.add_argument("--checkpoint", default=None)
     p.add_argument("--seed", type=int, default=1000)
     p.add_argument("--net_file", default=os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml"))
     p.add_argument("--route_file", default=os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml"))
     a, _ = p.parse_known_args()
+    if a.checkpoint is None:   # Play button: no arguments -> seed-0 run of the chosen algo (edit --algo default above)
+        a.checkpoint = os.path.join(PROJECT_ROOT, "runs", f"{a.algo}_seed0",
+                                    "qnet_final.pt" if a.algo == "dqn" else "actor_critic_final.pt")
+    if not os.path.exists(a.checkpoint):
+        sys.exit(f"ERROR: checkpoint not found: {a.checkpoint}")
     if a.algo == "dqn":
         from dqn.config import DQNConfig; from dqn.q_network import QNetwork
         try:

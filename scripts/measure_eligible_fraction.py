@@ -3,17 +3,19 @@ Needed for docs/LIMITATIONS.md: PPO's surrogate and entropy terms average over A
 import os, sys
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
 from environment.eval_common import fixed_cycle_policy_fn
-NET = os.environ.get("TLS_NET_FILE", "sumo_4x4_network/grid4x4.net.xml"); ROUTE = os.environ.get("TLS_ROUTE_FILE", "sumo_4x4_network/routes.rou.xml")
+NET = os.environ.get("TLS_NET_FILE", os.path.join(_ROOT, "sumo_4x4_network", "grid4x4.net.xml")); ROUTE = os.environ.get("TLS_ROUTE_FILE", os.path.join(_ROOT, "sumo_4x4_network", "routes.rou.xml"))
 env = TrafficGridEnv(GridEnvConfig(net_file=NET, route_file=ROUTE, episode_seconds=1200)); res = {}
 pols = {"always_switch(10s)": fixed_cycle_policy_fn(10, 90), "fixed_cycle_15s": fixed_cycle_policy_fn(15, 90),
         "fixed_cycle_30s": fixed_cycle_policy_fn(30, 90), "hold_forever": lambda o: np.zeros(16, int)}
-if len(sys.argv) > 1:   # optional PPO checkpoint: stochastic (training-time) and greedy
+_ck = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_ROOT, "runs", "ppo_seed0", "actor_critic_final.pt")
+if os.path.exists(_ck):   # trained PPO checkpoint (Play button: runs/ppo_seed0/...): stochastic and greedy
     import torch
     from ppo.config import PPOConfig; from ppo.actor_critic import ActorCritic
     from environment.eligibility import eligibility_from_features
-    c = PPOConfig(); net = ActorCritic(c.input_dim, c.hidden_sizes, c.n_actions); net.load_state_dict(torch.load(sys.argv[1])); net.eval()
+    c = PPOConfig(); net = ActorCritic(c.input_dim, c.hidden_sizes, c.n_actions); net.load_state_dict(torch.load(_ck)); net.eval()
     t = lambda o: (torch.as_tensor(o["node_features"], dtype=torch.float32), torch.as_tensor(eligibility_from_features(o["node_features"])))
     pols["ppo_ckpt_stochastic"] = lambda o: net.act(*t(o))[0].numpy()
     pols["ppo_ckpt_greedy"] = lambda o: net.act_greedy(*t(o)).numpy()

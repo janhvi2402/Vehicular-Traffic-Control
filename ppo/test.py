@@ -5,10 +5,10 @@ A quick, single-episode sanity check for a trained PPO checkpoint -- NOT
 the full evaluation protocol (that's evaluate.py). Mirrors dqn/test.py.
 
 Usage:
-    python -m ppo.test --checkpoint runs/ppo_run_matched500/actor_critic_final.pt
+    python -m ppo.test --checkpoint runs/ppo_seed0/actor_critic_final.pt
 
     Or just hit Play/F5 with zero arguments -- DEFAULT_CHECKPOINT below
-    points at runs/ppo_run_matched500/actor_critic_final.pt already.
+    points at runs/ppo_seed0/actor_critic_final.pt already.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from ppo.config import PPOConfig  # noqa: E402
 from environment.eligibility import eligibility_from_features  # noqa: E402
 from ppo.actor_critic import ActorCritic  # noqa: E402
 
-DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_run_matched500", "actor_critic_final.pt")
+DEFAULT_CHECKPOINT = os.path.join(PROJECT_ROOT, "runs", "ppo_seed0", "actor_critic_final.pt")
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
 

@@ -22,14 +22,32 @@ from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 DEFAULT_NET = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
 
+# Play-button defaults (edit these two): used when a script is run without command-line arguments
+DEFAULT_ALGO = "dqn"
+DEFAULT_CHECKPOINTS = {
+    "dqn": os.path.join(PROJECT_ROOT, "runs", "dqn_seed0", "qnet_final.pt"),
+    "ppo": os.path.join(PROJECT_ROOT, "runs", "ppo_seed0", "actor_critic_final.pt"),
+}
+
 
 def add_common_args(p: argparse.ArgumentParser):
-    p.add_argument("--algo", required=True, choices=["dqn", "ppo"])
-    p.add_argument("--checkpoint", required=True)
+    p.add_argument("--algo", default=DEFAULT_ALGO, choices=["dqn", "ppo"])
+    p.add_argument("--checkpoint", default=None, help="default: DEFAULT_CHECKPOINTS[algo]")
     p.add_argument("--seed", type=int, default=1000, help="SUMO seed of the episode that is run (eval seeds start at 1000)")
     p.add_argument("--net_file", default=DEFAULT_NET)
     p.add_argument("--route_file", default=DEFAULT_ROUTE)
     p.add_argument("--out", default=None, help="PNG path (default: <checkpoint dir>/figures/<script>.png)")
+    _orig = p.parse_known_args
+
+    def _parse_known_args(*a, **k):
+        args, rest = _orig(*a, **k)
+        if args.checkpoint is None:
+            args.checkpoint = DEFAULT_CHECKPOINTS[args.algo]
+        if not os.path.exists(args.checkpoint):
+            raise SystemExit(f"ERROR: checkpoint not found:\n  {args.checkpoint}\n"
+                             f"Train first, or edit DEFAULT_CHECKPOINTS in diagnostics/diag_common.py.")
+        return args, rest
+    p.parse_known_args = _parse_known_args
 
 
 def default_out(args, name):

@@ -6,6 +6,8 @@ sampled at 5 s decision boundaries. Yellow for each green is [end, end + yellow_
 
   python -m diagnostics.plot_switch_timing --algo dqn --checkpoint runs/dqn_seed0/qnet_final.pt --seed 1000
 """
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # Play button: find project root
 import argparse
 import numpy as np
 import matplotlib
@@ -72,9 +74,10 @@ def main():
     print(f"greens={n_greens}  honored(vote)={n_honored_ev}  forced={n_forced_ev}")
     print(f"info totals: honored={log['n_honored_info']}  forced={log['n_forced_info']}")
     print(f"forced share of all phase changes: {n_forced_ev / max(n_greens, 1):.1%}   "
-          f"(near 100% with greens piled at {ycfg.max_green}s = 'never vote, let max_green switch' shortcut)")
+          f"(near 100% with greens piled at the forced cap, {ycfg.max_green - ycfg.decision_interval + 1}s = 'never vote, let max_green switch' shortcut)")
     print(f"voted switches per junction per episode: min={per_voted.min()} mean={per_voted.mean():.1f} max={per_voted.max()}")
-    print(f"greens ended at max_green: {int((dur >= ycfg.max_green).sum())} of {n_greens}")
+    print(f"greens ended by the forced cap: {n_forced_ev} of {n_greens} (the env forces the switch at max_green - decision_interval + 1 = "
+          f"{ycfg.max_green - ycfg.decision_interval + 1} s, so no green reaches {ycfg.max_green} s)")
     print(f"green duration  min={dur.min():.0f}  mean={dur.mean():.1f}  max={dur.max():.0f}  "
           f"(allowed {ycfg.min_green}-{ycfg.max_green})")
     print("CHECK greens == honored+forced :", n_greens == log["n_honored_info"] + log["n_forced_info"])

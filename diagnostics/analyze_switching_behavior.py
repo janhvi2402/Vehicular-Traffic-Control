@@ -9,6 +9,8 @@ per approach, so very congested approaches saturate.
 
   python -m diagnostics.analyze_switching_behavior --algo dqn --checkpoint runs/dqn_seed0/qnet_final.pt --seed 1000
 """
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # Play button: find project root
 import argparse
 import numpy as np
 import matplotlib

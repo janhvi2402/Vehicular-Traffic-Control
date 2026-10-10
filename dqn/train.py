@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
 import json
 import os
 import pickle
 import sys
+import time
 
 import numpy as np
 import torch
@@ -38,7 +40,7 @@ from dqn.q_network import QNetwork, ReplayBuffer, dqn_targets, select_actions_ep
 
 DEFAULT_NET_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
 DEFAULT_ROUTE_FILE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
-DEFAULT_OUT = os.path.join(PROJECT_ROOT, "runs", "dqn_seed0")
+DEFAULT_SEED = 0   # Play button: EDIT THIS to train another seed. The output folder follows it: runs/dqn_seed<N>
 DEFAULT_TOTAL_EPISODES = 500  # must equal PPO's total_updates (one PPO update = one episode)
 
 
@@ -62,6 +64,8 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
           resume_from: str | None = None, start_step: int = 0, start_episode: int = 0,
           start_gradient_steps: int = 0, chunk_steps: int | None = None):
     os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "config.json"), "w") as _cf:   # documents exactly what this run used
+        json.dump(dataclasses.asdict(cfg), _cf, indent=2)
     if chunk_steps is None:
         chunk_steps = cfg.total_env_steps - start_step
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -113,6 +117,7 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     # persisted across --resume chunks so the target-sync schedule does not depend on how the run was split
     gradient_steps = start_gradient_steps
     last_loss = float("nan")
+    t0 = time.time()
 
     end_step = min(start_step + chunk_steps, cfg.total_env_steps)
     for step in range(start_step + 1, end_step + 1):
@@ -162,8 +167,11 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
                 target_net.load_state_dict(q_net.state_dict())
 
         if step % cfg.log_every == 0:
+            _el = time.time() - t0
+            _eta = _el / max(step - start_step, 1) * (end_step - step)
             print(f"step {step:>7d} | ep {episode:>4d} | eps {epsilon:.3f} | "
-                  f"reward(ep so far) {episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | loss {last_loss:.4f}")
+                  f"reward(ep so far) {episode_reward:8.1f} | wait {info['total_waiting_time']:8.1f} | loss {last_loss:.4f} | "
+                  f"{_el / 60:6.1f} min elapsed, ETA {_eta / 3600:5.2f} h", flush=True)
             # equals the full-episode mean when log_every is a multiple of the episode length (default: 720)
             row = [step, episode, epsilon, episode_reward, info["total_waiting_time"], info["throughput"], last_loss,
                    ep_wait_sum / max(ep_steps, 1), info["mean_vehicle_wait"]]
@@ -181,13 +189,15 @@ def train(cfg: DQNConfig, net_file: str, route_file: str, out_dir: str, use_gui:
 
     final_ckpt_name = "qnet_final.pt" if end_step >= cfg.total_env_steps else "qnet_latest.pt"
     torch.save(q_net.state_dict(), os.path.join(out_dir, final_ckpt_name))
-    with open(buffer_path, "wb") as f:
-        pickle.dump(buffer.buffer, f)
+    if end_step < cfg.total_env_steps:   # the buffer is only needed to continue a chunked run; skipped once training is
+        with open(buffer_path, "wb") as f:   # complete (saves ~200 MB of disk and a long pickle per seed)
+            pickle.dump(buffer.buffer, f)
     with open(os.path.join(out_dir, "resume_state.json"), "w") as f:
         json.dump({"step": end_step, "episode": episode, "gradient_steps": gradient_steps,
                    "done_training": end_step >= cfg.total_env_steps}, f)
     log_file.close()
     env.close()
+    print(f"Episodes completed: {episode} (expected {cfg.total_env_steps // (cfg.episode_seconds // cfg.decision_interval)} for a full run)")
     print(f"Chunk complete: ran steps {start_step + 1}..{end_step} of {cfg.total_env_steps}. "
           f"Checkpoint: {os.path.join(out_dir, final_ckpt_name)}")
 
@@ -196,7 +206,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--net_file", default=DEFAULT_NET_FILE)
     parser.add_argument("--route_file", default=DEFAULT_ROUTE_FILE)
-    parser.add_argument("--out", default=DEFAULT_OUT)
+    parser.add_argument("--out", default=None, help="default: runs/dqn_seed<seed>")
     parser.add_argument("--episodes", type=int, default=DEFAULT_TOTAL_EPISODES)
     parser.add_argument("--steps", type=int, default=None, help="raw total step count (overrides --episodes)")
     parser.add_argument("--seed", type=int, default=None, help="training seed (default: DQNConfig.seed)")
@@ -209,14 +219,18 @@ if __name__ == "__main__":
     args, _unknown = parser.parse_known_args()
 
     cfg = DQNConfig()
-    if args.seed is not None:
-        cfg.seed = args.seed
+    cfg.seed = args.seed if args.seed is not None else DEFAULT_SEED
+    out_dir = args.out or os.path.join(PROJECT_ROOT, "runs", f"dqn_seed{cfg.seed}")
+    # protect a finished run: a second Play-button click must not silently overwrite hours of training
+    if not args.resume and os.path.exists(os.path.join(out_dir, "qnet_final.pt")):
+        sys.exit(f"STOP: {out_dir} already contains a finished run (qnet_final.pt).\n"
+                 f"Change DEFAULT_SEED (or pass --seed/--out), or delete that folder if you really want to retrain.")
     if args.steps is not None:
         cfg.total_env_steps = args.steps
     else:
         cfg.total_env_steps = args.episodes * (cfg.episode_seconds // cfg.decision_interval)
         print(f"Training for {args.episodes} episodes -> {cfg.total_env_steps} total steps")
 
-    train(cfg, args.net_file, args.route_file, args.out, use_gui=args.gui,
+    train(cfg, args.net_file, args.route_file, out_dir, use_gui=args.gui,
           resume_from=args.resume, start_step=args.start_step, start_episode=args.start_episode,
           start_gradient_steps=args.start_gradient_steps, chunk_steps=args.chunk_steps)

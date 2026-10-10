@@ -8,6 +8,8 @@ Reads no checkpoint, so the footer lists the summary files used with a short con
 
   python -m diagnostics.compare_algorithms --algos dqn ppo --seeds 0 1 2
 """
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # Play button: find project root
 import argparse
 import json
 import os
@@ -22,7 +24,8 @@ METRICS = [("mean_waiting_time", "Mean waiting time per step (s)"),
            ("mean_vehicle_wait", "Mean wait per vehicle (s)"),
            ("mean_queue_length", "Mean queue length (vehicles)"),
            ("throughput", "Throughput (vehicles arrived)")]
-COLORS = {"random": "#993556", "fixed_cycle": "#854F0B", "dqn": "#0F6E56", "ppo": "#2B5FA8"}
+COLORS = {"random": "#993556", "fixed_cycle": "#854F0B", "max_pressure": "#7A7A7A", "dqn": "#0F6E56", "ppo": "#2B5FA8",
+          "ac": "#B5651D", "ca": "#7B3FA0"}
 
 
 def main():
@@ -30,7 +33,7 @@ def main():
     p.add_argument("--runs_dir", default=os.path.join(PROJECT_ROOT, "runs"))
     p.add_argument("--algos", nargs="+", default=["dqn", "ppo"])
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
-    p.add_argument("--summary_name", default="summary.json")
+    p.add_argument("--summary_name", default="eval_4x4/summary.json")
     p.add_argument("--out", default=None)
     args, _ = p.parse_known_args()
 
@@ -46,7 +49,8 @@ def main():
         raise SystemExit("no summary.json files found")
 
     base_runs = [s for a in S for s in S[a]]
-    for pol in ("random", "fixed_cycle"):
+    BASELINES = [b for b in ("random", "fixed_cycle", "max_pressure") if all(b in r for r in base_runs)]
+    for pol in BASELINES:
         for m, _ in METRICS:
             v = [r[pol][m]["mean"] for r in base_runs if m in r[pol]]
             if v and (max(v) - min(v)) > 1e-6 * max(1.0, abs(np.mean(v))):
@@ -56,20 +60,20 @@ def main():
     if len(cyc) > 1:
         print(f"WARNING: different fixed-cycle lengths used across runs: {sorted(map(str, cyc))}")
 
-    policies = ["random", "fixed_cycle"] + [a for a in args.algos if S[a]]
+    policies = BASELINES + [a for a in args.algos if S[a]]
     fig, axes = plt.subplots(1, len(METRICS), figsize=(5 * len(METRICS), 4.8))
     print(f"\n{'metric':22s}" + "".join(f"{p_:>22s}" for p_ in policies))
     for ax, (m, title) in zip(axes, METRICS):
         means, errs, pts = [], [], []
         for pol in policies:
-            if pol in ("random", "fixed_cycle"):
+            if pol in BASELINES:
                 vals = [r[pol][m]["mean"] for r in base_runs if m in r[pol]]
                 err = base_runs[0][pol][m]["std"] if vals else 0.0
             else:
                 vals = [r["algo"][m]["mean"] for r in S[pol] if m in r["algo"]]
                 err = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
             means.append(float(np.mean(vals)) if vals else np.nan); errs.append(err); pts.append(vals)
-        ax.bar(policies, means, yerr=errs, capsize=5, color=[COLORS[p_] for p_ in policies])
+        ax.bar(policies, means, yerr=errs, capsize=5, color=[COLORS.get(p_, "#777777") for p_ in policies])
         for i, v in enumerate(pts):
             if policies[i] in S and len(v) > 1:
                 ax.scatter([i] * len(v), v, color="k", s=12, zorder=3)

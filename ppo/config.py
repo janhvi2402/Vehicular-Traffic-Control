@@ -92,7 +92,7 @@ class PPOConfig:
     # episodes is the typical range needed to show clear convergence on a
     # 16-junction grid), and this MUST equal DQN's own matched-comparison
     # training budget episode-for-episode (see dqn/config.py and the
-    # matched-run instructions in run_matched_eval.sh) -- mismatched
+    # matched-run instructions in scripts/check_matched_budget.py) -- mismatched
     # training budgets are a much bigger fairness problem than any single
     # hyperparameter, since an undertrained checkpoint will lose to an
     # overtrained one regardless of which algorithm is "better". This is
@@ -110,6 +110,11 @@ class PPOConfig:
     value_coeff: float = 0.5     # c1: value-loss weight in Eq. 9
     entropy_coeff: float = 0.01  # c2: entropy-bonus weight in Eq. 9
     max_grad_norm: float = 0.5   # gradient-clipping norm
+    # Optional: divide the value loss by the rollout's return std (floor 1.0) so the critic cannot dominate the shared
+    # trunk's gradient. Decide it from scripts/ppo_gradient_scale_probe.py BEFORE training any seed, and use the same
+    # setting for every seed (train.py writes config.json into each run folder; check_matched_budget.py compares them).
+    # False = the plain PPO objective of the paper (Eq. 9). Changes the effective value weight (see docs/LIMITATIONS.md).
+    scale_value_loss: bool = False
 
     # ---------------------------------------------------------------- #
     # Optimization (train.py: Adam optimizer, epoch/minibatch loop)
@@ -150,7 +155,7 @@ class PPOConfig:
     # killed or disconnected partway through (common on shared college
     # servers), only these periodic actor_critic_updateN.pt files survive,
     # and you resume with:
-    #   --resume runs/ppo_run_matched500/actor_critic_update<N>.pt --start_update <N>
+    #   --resume runs/ppo_seed0/actor_critic_update<N>.pt --start_update <N>
     checkpoint_every: int = 25
 
 
