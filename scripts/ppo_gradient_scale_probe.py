@@ -38,3 +38,9 @@ print(f"value_loss (minibatch) ~ {last[1]:.1f} vs |policy_loss| ~ {abs(last[0]):
 print(f"grad norm: policy+entropy {np.mean(n_pol):.3f} | 0.5*value {np.mean(n_val):.3f} | ratio value/policy {np.mean(n_val) / np.mean(n_pol):.1f}x")
 print(f"max_grad_norm={cfg.max_grad_norm}: clip factor on the total gradient = {min(1, cfg.max_grad_norm / np.mean(tot)):.3f} -> "
       f"policy gradient after clipping ~ {np.mean(n_pol) * min(1, cfg.max_grad_norm / np.mean(tot)):.4f}")
+# --- the same gradients WITH cfg.scale_value_loss: loss/sigma^2 scales the value gradient by exactly 1/sigma^2 ---
+ret_scale = max(float(bret.std()), 1.0); nv_s = np.mean(n_val) / ret_scale ** 2; tot_s = (np.mean(n_pol) ** 2 + nv_s ** 2) ** 0.5
+clip_s = min(1, cfg.max_grad_norm / tot_s)
+print(f"WITH scale_value_loss (ret_scale={ret_scale:.1f}): value grad {nv_s:.4f} | ratio value/policy {nv_s / np.mean(n_pol):.2f}x | "
+      f"clip factor {clip_s:.3f} -> policy gradient after clipping ~ {np.mean(n_pol) * clip_s:.4f}   [config flag is currently {cfg.scale_value_loss}]")
+env.close()

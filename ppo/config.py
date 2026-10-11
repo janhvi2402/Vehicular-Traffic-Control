@@ -110,11 +110,14 @@ class PPOConfig:
     value_coeff: float = 0.5     # c1: value-loss weight in Eq. 9
     entropy_coeff: float = 0.01  # c2: entropy-bonus weight in Eq. 9
     max_grad_norm: float = 0.5   # gradient-clipping norm
-    # Optional: divide the value loss by the rollout's return std (floor 1.0) so the critic cannot dominate the shared
-    # trunk's gradient. Decide it from scripts/ppo_gradient_scale_probe.py BEFORE training any seed, and use the same
-    # setting for every seed (train.py writes config.json into each run folder; check_matched_budget.py compares them).
-    # False = the plain PPO objective of the paper (Eq. 9). Changes the effective value weight (see docs/LIMITATIONS.md).
-    scale_value_loss: bool = False
+    # Divide the value loss by the rollout's return std (floor 1.0) so the critic cannot dominate the shared trunk's
+    # gradient. ENABLED after scripts/ppo_gradient_scale_probe.py gave (untrained net, one rollout): value/policy gradient
+    # ratio 295.6x, clip factor on the total gradient 0.014 -> policy gradient after clipping ~0.0017 (value targets std 28.6).
+    # With the scaling the value share of the trunk gradient drops to the same order as the policy share and the 0.5
+    # clip no longer silences the policy. Use the SAME setting for every seed (train.py writes config.json into each
+    # run folder; scripts/check_matched_budget.py compares them). False = plain PPO objective (paper Eq. 9).
+    # The logged value_loss is the SCALED loss when this is True. Disclose in the paper; see docs/LIMITATIONS.md.
+    scale_value_loss: bool = True
 
     # ---------------------------------------------------------------- #
     # Optimization (train.py: Adam optimizer, epoch/minibatch loop)
