@@ -263,7 +263,6 @@ def train(cfg: PPOConfig, net_file: str, route_file: str, out_dir: str, use_gui:
     final_ckpt_name = "actor_critic_final.pt" if end_update >= cfg.total_updates else "actor_critic_latest.pt"
     torch.save(net.state_dict(), os.path.join(out_dir, final_ckpt_name))
     with open(os.path.join(out_dir, "resume_state.json"), "w") as f:
-        import json
         json.dump({"update": end_update, "episode": episode, "done_training": end_update >= cfg.total_updates}, f)
     log_file.close()
     env.close()

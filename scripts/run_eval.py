@@ -7,8 +7,8 @@ import glob, hashlib, json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ------------------------------- EDIT ------------------------------- #
-ALGOS = ["dqn", "ppo"]
-SEEDS = [0, 1, 2]                      # training seeds you have trained, e.g. [0, 1, 2]
+ALGOS = os.environ.get("EVAL_ALGOS", "dqn,ppo").split(",")     # env vars let you launch one process per seed/algorithm in parallel
+SEEDS = [int(x) for x in os.environ.get("EVAL_SEEDS", "0,1,2").split(",")]   # e.g. EVAL_SEEDS=1 python scripts/run_eval.py
 EPISODES = 10                    # evaluation episodes (seeds 1000..)
 CYCLE_4X4 = "auto"               # "auto" = read the tuned value from runs/fixed_cycle_choice.json (run scripts/sweep_fixed_cycle.py first)
 CYCLE_3X3 = "auto"               # or put a number of seconds here to force it
