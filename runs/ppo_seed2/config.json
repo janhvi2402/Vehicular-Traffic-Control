@@ -1,0 +1,26 @@
+{
+  "input_dim": 11,
+  "hidden_sizes": [
+    128,
+    128
+  ],
+  "n_actions": 2,
+  "episode_seconds": 3600,
+  "decision_interval": 5,
+  "horizon": 720,
+  "total_updates": 500,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "clip_epsilon": 0.2,
+  "value_coeff": 0.5,
+  "entropy_coeff": 0.01,
+  "max_grad_norm": 0.5,
+  "scale_value_loss": true,
+  "learning_rate": 0.0003,
+  "num_epochs": 4,
+  "minibatch_size": 64,
+  "reward_clip": 50.0,
+  "seed": 2,
+  "log_every": 1,
+  "checkpoint_every": 25
+}
