@@ -1,0 +1,376 @@
+{
+  "always_switch": {
+    "total_reward": {
+      "mean": -700.5000000000034,
+      "std": 13.53698637068084
+    },
+    "mean_waiting_time": {
+      "mean": 99.01236111111112,
+      "std": 1.2422465477269395
+    },
+    "final_step_waiting_time": {
+      "mean": 52.5,
+      "std": 13.536986370680884
+    },
+    "throughput": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "mean_queue_length": {
+      "mean": 17.450277777777778,
+      "std": 0.15674372612328777
+    },
+    "n_switch_votes": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 18.500455187263455,
+      "std": 0.1496973215257217
+    },
+    "max_vehicle_wait": {
+      "mean": 95.6,
+      "std": 8.742997197757758
+    },
+    "n_vehicles_completed": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
+  "max_pressure": {
+    "total_reward": {
+      "mean": -685.1499999999997,
+      "std": 28.385568516413418
+    },
+    "mean_waiting_time": {
+      "mean": 89.15652777777777,
+      "std": 1.421250760067985
+    },
+    "final_step_waiting_time": {
+      "mean": 82.0,
+      "std": 29.448259710889538
+    },
+    "throughput": {
+      "mean": 3881.9,
+      "std": 3.207802986469088
+    },
+    "mean_queue_length": {
+      "mean": 16.095972222222223,
+      "std": 0.19323777371766157
+    },
+    "n_switch_votes": {
+      "mean": 2010.2,
+      "std": 7.249827584156743
+    },
+    "n_forced_switches": {
+      "mean": 0.3,
+      "std": 0.45825756949558394
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 17.377010471502047,
+      "std": 0.1573800905982913
+    },
+    "max_vehicle_wait": {
+      "mean": 89.3,
+      "std": 6.753517601961218
+    },
+    "n_vehicles_completed": {
+      "mean": 3881.9,
+      "std": 3.207802986469088
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 2010.5,
+      "std": 7.102816342831906
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.00014945479041751614,
+      "std": 0.0002282990015202896
+    }
+  },
+  "algo": {
+    "total_reward": {
+      "mean": -657.3499999999997,
+      "std": 27.230580236197977
+    },
+    "mean_waiting_time": {
+      "mean": 89.94847222222222,
+      "std": 1.4012462004772204
+    },
+    "final_step_waiting_time": {
+      "mean": 85.4,
+      "std": 27.306409503997408
+    },
+    "throughput": {
+      "mean": 3882.4,
+      "std": 2.2891046284519194
+    },
+    "mean_queue_length": {
+      "mean": 16.124305555555555,
+      "std": 0.17160423397248642
+    },
+    "n_switch_votes": {
+      "mean": 1906.2,
+      "std": 11.745637488020817
+    },
+    "n_forced_switches": {
+      "mean": 0.3,
+      "std": 0.45825756949558394
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 17.371115795637312,
+      "std": 0.16287880597126123
+    },
+    "max_vehicle_wait": {
+      "mean": 87.8,
+      "std": 6.925315877272314
+    },
+    "n_vehicles_completed": {
+      "mean": 3882.4,
+      "std": 2.2891046284519194
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 1906.5,
+      "std": 11.749468073066117
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.00015731986611701852,
+      "std": 0.0002403152170521295
+    }
+  },
+  "dqn": {
+    "total_reward": {
+      "mean": -657.3499999999997,
+      "std": 27.230580236197977
+    },
+    "mean_waiting_time": {
+      "mean": 89.94847222222222,
+      "std": 1.4012462004772204
+    },
+    "final_step_waiting_time": {
+      "mean": 85.4,
+      "std": 27.306409503997408
+    },
+    "throughput": {
+      "mean": 3882.4,
+      "std": 2.2891046284519194
+    },
+    "mean_queue_length": {
+      "mean": 16.124305555555555,
+      "std": 0.17160423397248642
+    },
+    "n_switch_votes": {
+      "mean": 1906.2,
+      "std": 11.745637488020817
+    },
+    "n_forced_switches": {
+      "mean": 0.3,
+      "std": 0.45825756949558394
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 17.371115795637312,
+      "std": 0.16287880597126123
+    },
+    "max_vehicle_wait": {
+      "mean": 87.8,
+      "std": 6.925315877272314
+    },
+    "n_vehicles_completed": {
+      "mean": 3882.4,
+      "std": 2.2891046284519194
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 1906.5,
+      "std": 11.749468073066117
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.00015731986611701852,
+      "std": 0.0002403152170521295
+    }
+  },
+  "random": {
+    "total_reward": {
+      "mean": -758.8899999999987,
+      "std": 183.4862689685525
+    },
+    "mean_waiting_time": {
+      "mean": 230.79625000000001,
+      "std": 8.432492182149128
+    },
+    "final_step_waiting_time": {
+      "mean": 272.5,
+      "std": 184.5628619197264
+    },
+    "throughput": {
+      "mean": 3872.7,
+      "std": 4.73392015141785
+    },
+    "mean_queue_length": {
+      "mean": 24.82513888888889,
+      "std": 0.40330303394762357
+    },
+    "n_switch_votes": {
+      "mean": 1621.3,
+      "std": 13.748090776540572
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 24.893214314392722,
+      "std": 0.31492229046719294
+    },
+    "max_vehicle_wait": {
+      "mean": 143.1,
+      "std": 11.953660527219267
+    },
+    "n_vehicles_completed": {
+      "mean": 3872.7,
+      "std": 4.73392015141785
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 1621.3,
+      "std": 13.748090776540572
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle": {
+    "total_reward": {
+      "mean": -700.5000000000034,
+      "std": 13.53698637068084
+    },
+    "mean_waiting_time": {
+      "mean": 99.01236111111112,
+      "std": 1.2422465477269395
+    },
+    "final_step_waiting_time": {
+      "mean": 52.5,
+      "std": 13.536986370680884
+    },
+    "throughput": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "mean_queue_length": {
+      "mean": 17.450277777777778,
+      "std": 0.15674372612328777
+    },
+    "n_switch_votes": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 18.500455187263455,
+      "std": 0.1496973215257217
+    },
+    "max_vehicle_wait": {
+      "mean": 95.6,
+      "std": 8.742997197757758
+    },
+    "n_vehicles_completed": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
+  "fixed_cycle_seconds_used": 10.0,
+  "normalized_performance_pct_vs_fixed_cycle": 173.8996403493872
+}
