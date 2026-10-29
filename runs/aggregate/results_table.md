@@ -1,1 +1,0 @@
-Notes: waiting time is the sum of SUMO per-vehicle waiting time over all incoming lanes (default 100 s memory), averaged over steps; wait per vehicle counts only completed trips; baselines are deterministic given the evaluation seeds.

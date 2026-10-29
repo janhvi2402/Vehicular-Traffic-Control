@@ -10,7 +10,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALGOS = ["dqn", "ppo"]
 SEEDS = [0, 1, 2]
 NETS = [("4x4", 16), ("3x3", 9)]
-BASELINES = [("random", "Random"), ("always_switch", "Always-switch"), ("fixed_cycle", "Fixed-cycle"), ("max_pressure", "Max-pressure")]
+BASELINES = [("random", "Random"), ("always_switch", "Always-switch"), ("fixed_cycle", "Tuned fixed-time"), ("fixed_time_90", "Fixed-time 90 s"), ("fixed_time_60", "Fixed-time 60 s"), ("max_pressure", "Max-pressure")]
+# Set by scripts/make_fixed_time_figures.py: improvements are computed against one fixed-time plan, read summary_fixedtime.json
+SUMMARY_NAME = os.environ.get("SUMMARY_NAME", "summary.json")
+BASELINE_KEY = os.environ.get("BASELINE_KEY", "fixed_cycle")
+SUFFIX = os.environ.get("OUT_SUFFIX") or ("" if SUMMARY_NAME == "summary.json" else "_" + SUMMARY_NAME[len("summary_"):-len(".json")])   # summary_fixedtime.json -> _fixedtime
+BASE_LABEL = dict(BASELINES)[BASELINE_KEY]
 METRICS = [("mean_waiting_time", "Waiting time (veh*s, per-step mean)"), ("mean_vehicle_wait", "Wait per vehicle (s)"),
            ("mean_queue_length", "Queue length (veh)"), ("throughput", "Throughput (veh)"),
            ("phase_changes", "Phase changes / junction / episode"), ("n_teleports", "Teleports / episode")]
@@ -27,7 +32,7 @@ for net, nj in NETS:
     runs = {}
     for a in ALGOS:
         for s in SEEDS:
-            p = os.path.join(ROOT, "runs", f"{a}_seed{s}", f"eval_{net}", "summary.json")
+            p = os.path.join(ROOT, "runs", f"{a}_seed{s}", f"eval_{net}", SUMMARY_NAME)
             if os.path.exists(p): runs.setdefault(a, []).append(json.load(open(p)))
             else: print(f"missing: {p}")
     if not runs: continue
@@ -37,9 +42,14 @@ for net, nj in NETS:
         if all(b in r for r in allr):
             vals = [r[b]["mean_waiting_time"]["mean"] for r in allr]
             if max(vals) - min(vals) > 1e-6 * max(1, abs(np.mean(vals))): print(f"WARNING [{net}] baseline {b} differs between runs -- not evaluated identically")
-    fx = {m: np.mean([value(r, "fixed_cycle", m, nj) for r in allr]) for m, _ in METRICS}
-    head = ["Policy"] + [lab for _, lab in METRICS] + [f"Improvement vs fixed-cycle: {lab.split(' (')[0]} (%)" for m, lab in METRICS if m in IMPROVE]
-    md += [f"### {net} grid  (fixed-cycle = {ref.get('fixed_cycle_seconds_used')} s; algorithms: mean ± std over {', '.join(f'{a}: {len(v)}' for a, v in runs.items())} training seeds)", "",
+    fx = {m: np.mean([value(r, BASELINE_KEY, m, nj) for r in allr]) for m, _ in METRICS}
+    head = ["Policy"] + [lab for _, lab in METRICS] + [f"Improvement vs {BASE_LABEL}: {lab.split(' (')[0]} (%)" for m, lab in METRICS if m in IMPROVE]
+    if "fixed_time_90" in ref and "fixed_time_60" in ref:
+        base_txt = (f"90 s plan (main {ref['fixed_time_90']['split_main_green']}/side {ref['fixed_time_90']['split_side_green']}), "
+                    f"60 s plan (main {ref['fixed_time_60']['split_main_green']}/side {ref['fixed_time_60']['split_side_green']})")
+    else:
+        v = ref.get('fixed_cycle_seconds_used'); base_txt = f"fixed-time baseline: {v}{' s' if isinstance(v, (int, float)) else ''}"
+    md += [f"### {net} grid  ({base_txt}; algorithms: mean ± std over {', '.join(f'{a}: {len(v)}' for a, v in runs.items())} training seeds)", "",
            "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     entries = [(b, lab, None) for b, lab in BASELINES if all(b in r for r in allr)] + [(a, a.upper(), runs[a]) for a in runs]
     for key, lab, rr in entries:
@@ -60,9 +70,9 @@ for net, nj in NETS:
 md += ["Notes: waiting time is the sum of SUMO per-vehicle waiting time over all incoming lanes (default 100 s memory), averaged over steps; "
        "wait per vehicle counts only completed trips; baselines are deterministic given the evaluation seeds."]
 out_dir = os.path.join(ROOT, "runs", "aggregate"); os.makedirs(out_dir, exist_ok=True)
-open(os.path.join(out_dir, "results_table.md"), "w").write("\n".join(md) + "\n")
+open(os.path.join(out_dir, f"results_table{SUFFIX}.md"), "w").write("\n".join(md) + "\n")
 if rows:
     cols = sorted({k for r in rows for k in r}, key=lambda k: (k not in ("network", "policy"), k))
-    with open(os.path.join(out_dir, "results_table.csv"), "w", newline="") as f:
+    with open(os.path.join(out_dir, f"results_table{SUFFIX}.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(rows)
 print("\n".join(md)); print(f"\nsaved to {out_dir}")

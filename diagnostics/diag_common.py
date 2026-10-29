@@ -19,8 +19,16 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 
-DEFAULT_NET = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml")
-DEFAULT_ROUTE = os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml")
+def _first_existing(folder, names):
+    for n in names:
+        p = os.path.join(PROJECT_ROOT, folder, n)
+        if os.path.exists(p):
+            return p
+    sys.exit(f"ERROR: none of {names} found in {folder}/")
+
+
+DEFAULT_NET = _first_existing("sumo_4x4_network", ["grid4x4.net.xml", "grid4x4_net.xml"])
+DEFAULT_ROUTE = _first_existing("sumo_4x4_network", ["routes.rou.xml", "routes_rou.xml"])
 
 # Play-button defaults (edit these two): used when a script is run without command-line arguments
 DEFAULT_ALGO = "dqn"

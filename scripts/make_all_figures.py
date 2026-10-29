@@ -1,7 +1,7 @@
 """
 scripts/make_all_figures.py -- Play button, no arguments. Builds every report figure from FINISHED training + evaluation:
   training curves (per algorithm + combined), behaviour diagnostics per algorithm (switching, timing, congestion),
-  green-duration histograms, algorithm-vs-baselines bars (4x4 and 3x3), topology-generalization figure.
+  green-duration histograms. (Baseline-dependent figures come from scripts/make_fixed_time_figures.py.)
 Each step runs in its own process; a failing step is reported at the end and does not stop the others.
 Run scripts/run_eval.py first. Diagnostics support "dqn" and "ppo" only (they load those checkpoints).
 """
@@ -34,10 +34,7 @@ for a in [a for a in ALGOS if a in CKPT]:
         run(f"{a}: {d}", f"diagnostics/{d}.py", "--algo", a, "--checkpoint", ckpt(a), "--seed", EVAL_SEED)
 if all(a in ALGOS and os.path.exists(os.path.join(ROOT, ckpt(a))) for a in ("dqn", "ppo")):
     run("green durations dqn vs ppo", "diagnostics/plot_green_durations.py", "--checkpoint_dqn", ckpt("dqn"), "--checkpoint_ppo", ckpt("ppo"), "--seed", EVAL_SEED)
-for net in ("4x4", "3x3"):
-    run(f"algorithms vs baselines ({net})", "diagnostics/compare_algorithms.py", "--algos", *ALGOS, "--seeds", *map(str, SEEDS),
-        "--summary_name", f"eval_{net}/summary.json", "--out", os.path.join("runs", "aggregate", f"compare_algorithms_{net}.png"))
-run("topology generalization", "scripts/make_topology_plot.py")
+print("baseline-dependent figures: run scripts/make_fixed_time_figures.py")
 
 print("\n" + "=" * 60)
 for label, rc in results: print(f"{'ok  ' if rc == 0 else 'FAIL'} {label}")

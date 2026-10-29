@@ -21,12 +21,12 @@ from diagnostics.diag_common import (add_common_args, default_out, footer, load_
                                      make_env, run_logged_episode)
 
 APPROACH_ORDER = ["N", "E", "S", "W"]  # must match TrafficGridEnv.APPROACH_ORDER
-# upper edge exclusive, except the last bin which is the max_green cap itself (forced switch point)
-BINS = [(10, 15), (15, 20), (20, 30), (30, 50), (50, 90), (90, 91)]
+# upper edge exclusive, except the last bin, which is the forced-cap point (the env forces the switch at max_green - decision_interval + 1 = 86 s)
+BINS = [(10, 15), (15, 20), (20, 30), (30, 50), (50, 86), (86, 91)]
 
 
 def bin_label(lo, hi):
-    return "90 (cap)" if lo == 90 else f"{lo}-{hi}s"
+    return "86 (forced cap)" if lo == 86 else f"{lo}-{hi}s"
 
 
 def collect(log, env):
