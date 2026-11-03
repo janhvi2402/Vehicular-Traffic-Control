@@ -121,11 +121,13 @@ class DQNConfig:
     epsilon_end: float = 0.1              # paper: final exploration value
     epsilon_decay_fraction: float = 0.10  # fraction of total_env_steps to anneal over
 
-    # Paper's evaluation protocol uses a fixed, lower epsilon=0.05 at test
-    # time (still epsilon-greedy, not fully greedy) "to minimize the
-    # possibility of overfitting during evaluation". We use exactly this
-    # value in test.py / evaluate.py.
-    eval_epsilon: float = 0.05
+    # Evaluation is FULLY GREEDY (epsilon = 0) for every algorithm in this study (DQN, PPO, AC, CA):
+    # PPO/AC/CA are evaluated with argmax actions, so DQN must not be evaluated with extra random
+    # actions (Mnih et al.'s 0.05 would only ever lower DQN's score). Nothing in the code reads this
+    # field; dqn/evaluate.py and dqn/test.py take --eval_epsilon (default 0.0). Pass 0.05 there only
+    # to reproduce the original Atari protocol in a DQN-only experiment, and never compare that run
+    # against the other algorithms.
+    eval_epsilon: float = 0.0
 
     # ---------------------------------------------------------------- #
     # Reward handling
