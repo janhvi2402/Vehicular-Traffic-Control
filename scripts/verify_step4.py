@@ -24,8 +24,8 @@ def run(policy, **kw):
     cfg = env.cfg; env.close(); return rows, cfg
 
 
-hold = lambda o, rng: np.zeros(16, int)
-sparse = lambda o, rng: ((rng.random(16) < 0.15) & (o["action_mask"] > 0.5)).astype(int)
+hold = lambda o, rng: np.zeros(len(o["node_features"]), int)
+sparse = lambda o, rng: ((rng.random(len(o["node_features"])) < 0.15) & (o["action_mask"] > 0.5)).astype(int)
 
 print("default reward_mode:", GridEnvConfig(NET, ROUTE).reward_mode, "| lambda_s:", GridEnvConfig(NET, ROUTE).lambda_s,
       "| lambda_w:", GridEnvConfig(NET, ROUTE).lambda_w)

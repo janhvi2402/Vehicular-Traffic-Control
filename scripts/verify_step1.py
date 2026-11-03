@@ -44,5 +44,5 @@ def episode(policy, seed, name):
           f"path C (green spells >=90s seen at 1s resolution)={env.greens_ge_max}  steps={env._episode_step}", flush=True)
     env.close()
 
-episode(lambda o, rng: np.zeros(16, int), 1000, "hold-forever")
-episode(lambda o, rng: ((rng.random(16) < 0.08) & (o["action_mask"] > 0.5)).astype(int), 1000, "sparse-vote(8%)")
+episode(lambda o, rng: np.zeros(len(o["node_features"]), int), 1000, "hold-forever")
+episode(lambda o, rng: ((rng.random(len(o["node_features"])) < 0.08) & (o["action_mask"] > 0.5)).astype(int), 1000, "sparse-vote(8%)")

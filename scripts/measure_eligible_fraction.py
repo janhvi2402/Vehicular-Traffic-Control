@@ -9,7 +9,7 @@ from environment.eval_common import fixed_cycle_policy_fn
 NET = os.environ.get("TLS_NET_FILE", os.path.join(_ROOT, "sumo_4x4_network", "grid4x4.net.xml")); ROUTE = os.environ.get("TLS_ROUTE_FILE", os.path.join(_ROOT, "sumo_4x4_network", "routes.rou.xml"))
 env = TrafficGridEnv(GridEnvConfig(net_file=NET, route_file=ROUTE, episode_seconds=1200)); res = {}
 pols = {"always_switch(10s)": fixed_cycle_policy_fn(10, 90), "fixed_cycle_15s": fixed_cycle_policy_fn(15, 90),
-        "fixed_cycle_30s": fixed_cycle_policy_fn(30, 90), "hold_forever": lambda o: np.zeros(16, int)}
+        "fixed_cycle_30s": fixed_cycle_policy_fn(30, 90), "hold_forever": lambda o: np.zeros(env.n_agents, int)}
 _ck = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_ROOT, "runs", "ppo_seed0", "actor_critic_final.pt")
 if os.path.exists(_ck):   # trained PPO checkpoint (Play button: runs/ppo_seed0/...): stochastic and greedy
     import torch
@@ -22,7 +22,7 @@ if os.path.exists(_ck):   # trained PPO checkpoint (Play button: runs/ppo_seed0/
 for name, pol in pols.items():
     obs, _ = env.reset(seed=1000); el = n = 0
     while True:
-        el += int((obs["action_mask"] > 0.5).sum()); n += 16
+        el += int((obs["action_mask"] > 0.5).sum()); n += env.n_agents
         obs, _, te, tr, _ = env.step(pol(obs))
         if te or tr: break
     print(f"{name:22s} eligible fraction = {el / n:.3f}", flush=True)

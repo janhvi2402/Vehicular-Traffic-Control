@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from scripts.eval_fixed_time import CYCLES, plan_label
+from eval_fixed_time import CYCLES, plan_label
 # ------------------------------------------------------------------ #
 ALGOS, SEEDS = ["dqn", "ppo"], [0, 1, 2]
 NETS = ["4x4", "3x3"]
@@ -45,7 +45,7 @@ def plot_run(s, path, algo, net):
     fig, axes = plt.subplots(1, 5, figsize=(22, 4.6))
     for ax, (m, title) in zip(axes, mets):
         if m == "phase_changes":
-            mu = [(s[k]["n_switch_votes"]["mean"] + s[k]["n_forced_switches"]["mean"]) / nj for k, _, _ in ent]; sd = [s[k]["n_switch_votes"]["std"] / nj for k, _, _ in ent]
+            mu = [(s[k]["n_switch_votes"]["mean"] + s[k]["n_forced_switches"]["mean"]) / nj for k, _, _ in ent]; sd = [float(np.hypot(s[k]["n_switch_votes"]["std"], s[k]["n_forced_switches"]["std"])) / nj for k, _, _ in ent]   # std of voted + forced changes (independence assumed)
         else:
             mu = [s[k][m]["mean"] for k, _, _ in ent]; sd = [s[k][m]["std"] for k, _, _ in ent]
         ax.bar([lab for _, lab, _ in ent], mu, yerr=sd, capsize=4, color=[c for _, _, c in ent]); ax.set_title(title, fontsize=10); ax.tick_params(axis="x", labelrotation=15)

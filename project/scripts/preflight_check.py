@@ -1,0 +1,98 @@
+"""
+scripts/preflight_check.py -- Play button, no arguments. Run it BEFORE starting any 12-hour training run.
+Confirms the files on disk are the final versions and that DQN and PPO are configured to be a fair, matched comparison.
+Prints PASS/FAIL per check and exits non-zero if anything fails.
+"""
+import ast, glob, os, re, symtable, sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+fails = []
+
+
+def check(ok, msg, detail=""):
+    print(("PASS  " if ok else "FAIL  ") + msg + (f"   [{detail}]" if detail else ""))
+    if not ok: fails.append(msg)
+
+
+def text(rel):
+    p = os.path.join(ROOT, rel)
+    return open(p, encoding="utf-8").read() if os.path.exists(p) else None
+
+
+# ---- files are the final versions -------------------------------------------------
+for rel, needles in {
+    "dqn/train.py": ["DEFAULT_SEED", "config.json", "Episodes completed", "min elapsed"],
+    "ppo/train.py": ["DEFAULT_SEED", "config.json", "ret_scale", "Episodes completed", "min elapsed"],
+    "ppo/config.py": ["scale_value_loss"],
+    "environment/eval_common.py": ["- 1e-4"],
+    "diagnostics/diag_common.py": ["DEFAULT_CHECKPOINTS"],
+    "scripts/run_eval.py": ["fixed_cycle_choice.json"],
+    "scripts/eval_fixed_time.py": ["fixed_time_policy", "fixed_time_choice.json", "sanity_checks"],
+    "scripts/sweep_fixed_time_split.py": ["CANDIDATES", "fixed_time_choice.json"],
+    "scripts/make_fixed_time_figures.py": ["summary_fixedtime.json", "figures_fixedtime"],
+    "environment/online_trainer.py": ["training_env_seed", "executed action mismatch", "config.json"],
+    "environment/eval_protocol.py": ["base_seed + 9999", "max_pressure_policy_fn"],
+    "ac/train.py": ["cli_run"], "ca/train.py": ["cli_run"], "ac/network.py": ["mask_switch_logits"],
+}.items():
+    t = text(rel)
+    check(t is not None and all(n in t for n in needles), f"{rel} is the final version", "missing file" if t is None else "")
+for rel in ("dqn/train.py", "ppo/train.py"):
+    t = text(rel)
+    if t:
+        top = symtable.symtable(t, rel, "exec"); mod = {s.get_name() for s in top.get_symbols() if s.is_imported()}
+        bad = [(f.get_name(), s.get_name()) for f in top.get_children() if f.get_type() == "function"
+               for s in f.get_symbols() if s.is_local() and s.get_name() in mod]
+        check(not bad, f"{rel}: no function shadows a module-level import (would crash with UnboundLocalError)", str(bad))
+
+# ---- DQN and PPO configured identically where it matters ---------------------------
+try:
+    from dqn.config import DQNConfig
+    from ppo.config import PPOConfig
+    d, p = DQNConfig(), PPOConfig()
+    check(d.total_env_steps == p.total_updates * p.horizon == 360_000, "training budget 500 episodes = 360,000 env steps for both",
+          f"dqn {d.total_env_steps}, ppo {p.total_updates}x{p.horizon}")
+    check(p.horizon == d.episode_seconds // d.decision_interval == 720, "PPO horizon = one 720-step episode")
+    for name in ("gamma", "reward_clip", "decision_interval", "episode_seconds"):
+        check(getattr(d, name) == getattr(p, name), f"same {name}", f"{getattr(d, name)} vs {getattr(p, name)}")
+    check(tuple(d.hidden_sizes) == tuple(p.hidden_sizes), "same hidden sizes", f"{d.hidden_sizes} vs {p.hidden_sizes}")
+    from ac.config import ACConfig
+    from ca.config import CAConfig
+    for nm, o in (("AC", ACConfig()), ("CA", CAConfig())):
+        check(o.total_env_steps == d.total_env_steps == 360_000, f"{nm}: same training budget (360,000 env steps = 500 episodes)", str(o.total_env_steps))
+        for name in ("reward_clip", "decision_interval", "episode_seconds"):
+            check(getattr(o, name) == getattr(d, name), f"{nm}: same {name}", f"{getattr(o, name)} vs {getattr(d, name)}")
+        check(tuple(o.hidden_sizes) == tuple(d.hidden_sizes), f"{nm}: same hidden sizes", str(o.hidden_sizes))
+        check(o.checkpoint_every == d.checkpoint_every == 18_000 and o.log_every == 720, f"{nm}: episode-aligned logging / checkpoints")
+    check(ACConfig().gamma == d.gamma and ACConfig().variant == "ac", "AC: gamma matches and variant == 'ac'")
+    check(p.scale_value_loss is True, "PPO scale_value_loss is enabled (decided from the gradient probe)", f"{p.scale_value_loss}")
+except Exception as e:
+    check(False, "could not import dqn.config / ppo.config", repr(e))
+
+# ---- environment limits --------------------------------------------------------------
+try:
+    from environment.grid_env import GridEnvConfig
+    f = GridEnvConfig.__dataclass_fields__
+    check((f["min_green"].default, f["max_green"].default, f["yellow_time"].default) == (10, 90, 4), "env min_green/max_green/yellow = 10/90/4")
+except Exception as e:
+    check(False, "could not read GridEnvConfig", repr(e))
+try:   # constants that compute_objective_J.py / switch_cost_probe.py / verify_step4.py hardcode
+    f = GridEnvConfig.__dataclass_fields__
+    check(f["lambda_s"].default == 0.3, "env lambda_s == 0.3 (hardcoded in the J table and probes)", str(f["lambda_s"].default))
+    check(d.gamma == p.gamma == 0.99, "gamma == 0.99 for both algorithms (hardcoded in the J table and probes)", f"{d.gamma} / {p.gamma}")
+except Exception as e:
+    check(False, "could not check lambda_s / gamma", repr(e))
+import glob
+check(not glob.glob(os.path.join(ROOT, "scripts", "*field*")), "no old *field* scripts left in scripts/ (replaced by eval_fixed_time / make_fixed_time_figures)",
+      ", ".join(os.path.basename(x) for x in glob.glob(os.path.join(ROOT, "scripts", "*field*"))))
+for rel in ("scripts/smoke_test.sh", "scripts/verify_ppo_seed.py", "dqn/make_topology_plot.py"):
+    check(not os.path.exists(os.path.join(ROOT, rel)), f"old file removed: {rel}")
+
+# ---- 3x3 vehicles use the same vehicle type as the 4x4 ----------------------------------
+for tag, folder, names in (("4x4", "sumo_4x4_network", ["routes.rou.xml"]), ("3x3", "sumo_3x3_network", ["routes3x3.rou.xml"])):
+    t = next((text(f"{folder}/{n}") for n in names if text(f"{folder}/{n}")), None)
+    if t is None: check(False, f"{tag} route file found"); continue
+    n_veh, n_car = len(re.findall(r"<vehicle ", t)), len(re.findall(r'<vehicle [^>]*type="car"', t))
+    check(n_veh > 0 and n_veh == n_car and 'maxSpeed="16.67"' in t, f"{tag} routes: all {n_veh} vehicles use vType car (maxSpeed 16.67)", f"{n_car} of {n_veh}")
+
+print("\n" + ("ALL CHECKS PASSED -- safe to start training." if not fails else f"{len(fails)} CHECK(S) FAILED -- fix before training."))
+sys.exit(1 if fails else 0)

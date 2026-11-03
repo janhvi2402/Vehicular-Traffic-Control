@@ -56,6 +56,9 @@ def main():
     log = run_logged_episode(env, policy, args.seed)
     R = collect(log, env)
     env.close()
+    if len(R) == 0:
+        raise SystemExit("no eligible decision points were collected in this episode -- nothing to analyse")
+    print("NOTE: in the last bin (86+ s) the env forces the switch whatever the vote is; the bar shows the VOTE probability, not whether a switch happened.")
 
     elapsed, sq, wq, sw, ww, act = R.T
     imb = ww - sw

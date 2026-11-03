@@ -27,6 +27,9 @@ for rel, needles in {
     "environment/eval_common.py": ["- 1e-4"],
     "diagnostics/diag_common.py": ["DEFAULT_CHECKPOINTS"],
     "scripts/run_eval.py": ["fixed_cycle_choice.json"],
+    "scripts/eval_fixed_time.py": ["fixed_time_policy", "fixed_time_choice.json", "sanity_checks"],
+    "scripts/sweep_fixed_time_split.py": ["CANDIDATES", "fixed_time_choice.json"],
+    "scripts/make_fixed_time_figures.py": ["summary_fixedtime.json", "figures_fixedtime"],
 }.items():
     t = text(rel)
     check(t is not None and all(n in t for n in needles), f"{rel} is the final version", "missing file" if t is None else "")
@@ -60,6 +63,17 @@ try:
     check((f["min_green"].default, f["max_green"].default, f["yellow_time"].default) == (10, 90, 4), "env min_green/max_green/yellow = 10/90/4")
 except Exception as e:
     check(False, "could not read GridEnvConfig", repr(e))
+try:   # constants that compute_objective_J.py / switch_cost_probe.py / verify_step4.py hardcode
+    f = GridEnvConfig.__dataclass_fields__
+    check(f["lambda_s"].default == 0.3, "env lambda_s == 0.3 (hardcoded in the J table and probes)", str(f["lambda_s"].default))
+    check(d.gamma == p.gamma == 0.99, "gamma == 0.99 for both algorithms (hardcoded in the J table and probes)", f"{d.gamma} / {p.gamma}")
+except Exception as e:
+    check(False, "could not check lambda_s / gamma", repr(e))
+import glob
+check(not glob.glob(os.path.join(ROOT, "scripts", "*field*")), "no old *field* scripts left in scripts/ (replaced by eval_fixed_time / make_fixed_time_figures)",
+      ", ".join(os.path.basename(x) for x in glob.glob(os.path.join(ROOT, "scripts", "*field*"))))
+for rel in ("scripts/smoke_test.sh", "scripts/verify_ppo_seed.py", "dqn/make_topology_plot.py"):
+    check(not os.path.exists(os.path.join(ROOT, rel)), f"old file removed: {rel}")
 
 # ---- 3x3 vehicles use the same vehicle type as the 4x4 ----------------------------------
 for tag, folder, names in (("4x4", "sumo_4x4_network", ["routes.rou.xml"]), ("3x3", "sumo_3x3_network", ["routes3x3.rou.xml"])):
