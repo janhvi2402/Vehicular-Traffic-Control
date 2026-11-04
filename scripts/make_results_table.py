@@ -7,7 +7,7 @@ Writes runs/aggregate/results_table.md and results_table.csv and prints the mark
 import csv, json, os
 import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ALGOS = ["dqn", "ppo"]
+ALGOS = ["dqn", "ppo", "ac", "ca"]
 SEEDS = [0, 1, 2]
 NETS = [("4x4", 16), ("3x3", 9)]
 BASELINES = [("random", "Random"), ("always_switch", "Always-switch"), ("fixed_cycle", "Tuned fixed-time"), ("fixed_time_90", "Fixed-time 90 s"), ("fixed_time_60", "Fixed-time 60 s"), ("max_pressure", "Max-pressure")]

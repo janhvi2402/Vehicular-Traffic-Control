@@ -3,17 +3,17 @@ scripts/make_all_figures.py -- Play button, no arguments. Builds every report fi
   training curves (per algorithm + combined), behaviour diagnostics per algorithm (switching, timing, congestion),
   green-duration histograms. (Baseline-dependent figures come from scripts/make_fixed_time_figures.py.)
 Each step runs in its own process; a failing step is reported at the end and does not stop the others.
-Run scripts/run_eval.py first. Diagnostics support "dqn" and "ppo" only (they load those checkpoints).
+Run scripts/run_eval.py first. Diagnostics support dqn, ppo, ac and ca (diagnostics/diag_common.load_policy).
 """
 import os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ------------------------------------------------------------------ #
-ALGOS = ["dqn", "ppo"]        # EDIT
+ALGOS = ["dqn", "ppo", "ac", "ca"]        # EDIT
 SEEDS = [0, 1, 2]                   # EDIT: seeds used by the aggregate figures
 BEHAVIOUR_SEED = 0            # which trained seed the behaviour diagnostics use
 EVAL_SEED = "1000"            # SUMO seed of the single diagnostic episode (an evaluation seed)
 # ------------------------------------------------------------------ #
-CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt"}
+CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt", "ac": "actor_final.pt", "ca": "actor_final.pt"}
 results = []
 
 

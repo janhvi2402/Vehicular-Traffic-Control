@@ -1,6 +1,6 @@
 """
 diagnostics/compare_algorithms.py  -- PNG only; numbers printed to console.
-DQN vs PPO vs baselines from the EXISTING summary.json of each training-seed run
+DQN vs PPO vs AC vs CA vs baselines from the EXISTING summary.json of each training-seed run
 (runs/<algo>_seed<N>/summary.json, written by evaluate.py). Algorithm bars: mean over
 training seeds of each run's eval-episode mean, error bar = std over training seeds
 (ddof=1). Baseline bars: mean over runs, error bar = eval-episode std of the first run.
@@ -32,7 +32,7 @@ COLORS = {"fixed_time_90": "#C98A00", "fixed_time_60": "#E6B422", "random": "#99
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--runs_dir", default=os.path.join(PROJECT_ROOT, "runs"))
-    p.add_argument("--algos", nargs="+", default=["dqn", "ppo"])
+    p.add_argument("--algos", nargs="+", default=["dqn", "ppo", "ac", "ca"])
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     p.add_argument("--summary_name", default="eval_4x4/summary.json")
     p.add_argument("--out", default=None)

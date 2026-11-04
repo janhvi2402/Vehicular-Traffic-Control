@@ -7,13 +7,13 @@ import glob, hashlib, json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ------------------------------- EDIT ------------------------------- #
-ALGOS = os.environ.get("EVAL_ALGOS", "dqn,ppo").split(",")     # env vars let you launch one process per seed/algorithm in parallel
+ALGOS = os.environ.get("EVAL_ALGOS", "dqn,ppo,ac,ca").split(",")     # env vars let you launch one process per seed/algorithm in parallel
 SEEDS = [int(x) for x in os.environ.get("EVAL_SEEDS", "0,1,2").split(",")]   # e.g. EVAL_SEEDS=1 python scripts/run_eval.py
 EPISODES = 10                    # evaluation episodes (seeds 1000..)
 CYCLE_4X4 = "auto"               # "auto" = read the tuned value from runs/fixed_cycle_choice.json (run scripts/sweep_fixed_cycle.py first)
 CYCLE_3X3 = "auto"               # or put a number of seconds here to force it
 # --------------------------------------------------------------------- #
-CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt"}
+CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt", "ac": "actor_final.pt", "ca": "actor_final.pt"}
 
 def first_existing(folder, patterns):
     for pat in patterns:

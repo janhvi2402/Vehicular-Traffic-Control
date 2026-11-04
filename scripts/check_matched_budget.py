@@ -6,11 +6,11 @@ so the comparison is matched. Reads runs/<algo>_seed<N>/train_log.csv. Exits wit
 import csv, glob, json, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-ALGOS = ["dqn", "ppo"]          # add "ac", "ca" once they are trained
+ALGOS = os.environ.get("MATCHED_ALGOS", "dqn,ppo,ac,ca").split(",")   # e.g. MATCHED_ALGOS=dqn,ppo while AC / CA are not trained yet
 EXPECTED_SEEDS = [0, 1, 2]
 EXPECTED_EPISODES = 500
 STEPS_PER_EPISODE = 720          # 3600 s / 5 s decision interval
-FINAL_CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt"}   # ac / ca: any *final*.pt
+FINAL_CKPT = {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt", "ac": "actor_final.pt", "ca": "actor_final.pt"}
 
 problems, seeds_by_algo = [], {}
 print(f"{'run':14s}{'log rows':>10s}{'last step':>12s}{'episodes':>10s}  final checkpoint")

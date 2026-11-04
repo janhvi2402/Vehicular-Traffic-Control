@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from eval_fixed_time import CYCLES, plan_label
 # ------------------------------------------------------------------ #
-ALGOS, SEEDS = ["dqn", "ppo"], [0, 1, 2]
+ALGOS, SEEDS = ["dqn", "ppo", "ac", "ca"], [0, 1, 2]
 NETS = ["4x4", "3x3"]
 # ------------------------------------------------------------------ #
 KEYS = [f"fixed_time_{c}" for c in CYCLES]

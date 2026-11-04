@@ -1,0 +1,270 @@
+{
+  "4x4": {
+    "Fixed-time 90 s": {
+      "total_reward": {
+        "mean": -1028.0000000000061,
+        "std": 35.434446517477916
+      },
+      "mean_waiting_time": {
+        "mean": 779.2530555555555,
+        "std": 7.558854845416345
+      },
+      "final_step_waiting_time": {
+        "mean": 644.0,
+        "std": 35.43444651747787
+      },
+      "throughput": {
+        "mean": 3742.7,
+        "std": 3.1
+      },
+      "mean_queue_length": {
+        "mean": 50.051249999999996,
+        "std": 0.35093539577274474
+      },
+      "n_switch_votes": {
+        "mean": 1280.0,
+        "std": 0.0
+      },
+      "n_forced_switches": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_steps": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "mean_vehicle_wait": {
+        "mean": 48.30895687178538,
+        "std": 0.3225389596864026
+      },
+      "max_vehicle_wait": {
+        "mean": 189.4,
+        "std": 4.6946778377222005
+      },
+      "n_vehicles_completed": {
+        "mean": 3742.7,
+        "std": 3.1
+      },
+      "n_teleports": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "ended_early": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_greens": {
+        "mean": 1280.0,
+        "std": 0.0
+      },
+      "share_greens_at_max_green": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_agents": 16,
+      "cycle_seconds": 90,
+      "split_main_green": 40,
+      "split_side_green": 40
+    },
+    "Fixed-time 60 s": {
+      "total_reward": {
+        "mean": -692.799999999995,
+        "std": 36.24858617932573
+      },
+      "mean_waiting_time": {
+        "mean": 354.1383333333334,
+        "std": 4.150489624173315
+      },
+      "final_step_waiting_time": {
+        "mean": 116.8,
+        "std": 36.24858617932567
+      },
+      "throughput": {
+        "mean": 3754.2,
+        "std": 3.9191835884530852
+      },
+      "mean_queue_length": {
+        "mean": 34.00416666666667,
+        "std": 0.28362389785083114
+      },
+      "n_switch_votes": {
+        "mean": 1920.0,
+        "std": 0.0
+      },
+      "n_forced_switches": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_steps": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "mean_vehicle_wait": {
+        "mean": 33.90981781857183,
+        "std": 0.2616596485239768
+      },
+      "max_vehicle_wait": {
+        "mean": 138.9,
+        "std": 5.485435260760991
+      },
+      "n_vehicles_completed": {
+        "mean": 3754.2,
+        "std": 3.9191835884530852
+      },
+      "n_teleports": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "ended_early": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_greens": {
+        "mean": 1920.0,
+        "std": 0.0
+      },
+      "share_greens_at_max_green": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_agents": 16,
+      "cycle_seconds": 60,
+      "split_main_green": 30,
+      "split_side_green": 20
+    }
+  },
+  "3x3": {
+    "Fixed-time 90 s": {
+      "total_reward": {
+        "mean": -503.099999999997,
+        "std": 37.22217081256818
+      },
+      "mean_waiting_time": {
+        "mean": 593.04,
+        "std": 4.889984441642526
+      },
+      "final_step_waiting_time": {
+        "mean": 287.1,
+        "std": 37.222170812568145
+      },
+      "throughput": {
+        "mean": 3861.6,
+        "std": 3.261901286060018
+      },
+      "mean_queue_length": {
+        "mean": 39.16361111111111,
+        "std": 0.3113434152543169
+      },
+      "n_switch_votes": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "n_forced_switches": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_steps": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "mean_vehicle_wait": {
+        "mean": 37.241607270831146,
+        "std": 0.26702065335851777
+      },
+      "max_vehicle_wait": {
+        "mean": 151.3,
+        "std": 5.866003750424986
+      },
+      "n_vehicles_completed": {
+        "mean": 3861.6,
+        "std": 3.261901286060018
+      },
+      "n_teleports": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "ended_early": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_greens": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "share_greens_at_max_green": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_agents": 9,
+      "cycle_seconds": 90,
+      "split_main_green": 40,
+      "split_side_green": 40
+    },
+    "Fixed-time 60 s": {
+      "total_reward": {
+        "mean": -386.5000000000031,
+        "std": 21.969296757065415
+      },
+      "mean_waiting_time": {
+        "mean": 353.1422222222222,
+        "std": 6.462895885383628
+      },
+      "final_step_waiting_time": {
+        "mean": 62.5,
+        "std": 21.9692967570653
+      },
+      "throughput": {
+        "mean": 3868.3,
+        "std": 2.193171219946131
+      },
+      "mean_queue_length": {
+        "mean": 30.91861111111111,
+        "std": 0.2980804069581653
+      },
+      "n_switch_votes": {
+        "mean": 1080.0,
+        "std": 0.0
+      },
+      "n_forced_switches": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_steps": {
+        "mean": 720.0,
+        "std": 0.0
+      },
+      "mean_vehicle_wait": {
+        "mean": 30.070411181082694,
+        "std": 0.2782022996768201
+      },
+      "max_vehicle_wait": {
+        "mean": 155.3,
+        "std": 13.791664149043074
+      },
+      "n_vehicles_completed": {
+        "mean": 3868.3,
+        "std": 2.193171219946131
+      },
+      "n_teleports": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "ended_early": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_greens": {
+        "mean": 1080.0,
+        "std": 0.0
+      },
+      "share_greens_at_max_green": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "n_agents": 9,
+      "cycle_seconds": 60,
+      "split_main_green": 30,
+      "split_side_green": 20
+    }
+  }
+}

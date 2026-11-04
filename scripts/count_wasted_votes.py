@@ -1,7 +1,7 @@
 """
 scripts/count_wasted_votes.py
 Runs ONE eval episode per policy and counts wasted votes = (votes the policy returned) - (votes the env
-executed), where executed = info["executed_actions"]. For DQN/PPO (masked) this must be exactly 0;
+executed), where executed = info["executed_actions"]. For DQN/PPO/AC/CA (masked) this must be exactly 0;
 random / fixed-cycle baselines emit raw votes and show how many votes were ignored.
 Also prints eval_common.run_episode's n_switch_votes, which must equal the executed count.
 
@@ -26,14 +26,14 @@ def count(env, policy, seed):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--algo", default="dqn", choices=["dqn", "ppo"]); p.add_argument("--checkpoint", default=None)
+    p.add_argument("--algo", default="dqn", choices=["dqn", "ppo", "ac", "ca"]); p.add_argument("--checkpoint", default=None)
     p.add_argument("--seed", type=int, default=1000)
     p.add_argument("--net_file", default=os.path.join(PROJECT_ROOT, "sumo_4x4_network", "grid4x4.net.xml"))
     p.add_argument("--route_file", default=os.path.join(PROJECT_ROOT, "sumo_4x4_network", "routes.rou.xml"))
     a, _ = p.parse_known_args()
     if a.checkpoint is None:   # Play button: no arguments -> seed-0 run of the chosen algo (edit --algo default above)
         a.checkpoint = os.path.join(PROJECT_ROOT, "runs", f"{a.algo}_seed0",
-                                    "qnet_final.pt" if a.algo == "dqn" else "actor_critic_final.pt")
+                                    {"dqn": "qnet_final.pt", "ppo": "actor_critic_final.pt"}.get(a.algo, "actor_final.pt"))
     if not os.path.exists(a.checkpoint):
         sys.exit(f"ERROR: checkpoint not found: {a.checkpoint}")
     if a.algo == "dqn":
@@ -46,6 +46,15 @@ def main():
         cfg = DQNConfig(); net = QNetwork(cfg.input_dim, cfg.hidden_sizes, cfg.n_actions)
         net.load_state_dict(torch.load(a.checkpoint, map_location="cpu")); net.eval()
         policy = dqn_policy_fn(net, 0.0, "cpu", np.random.default_rng(a.seed)); print(f"policy builder: {src} (eval_epsilon=0.0)")
+    elif a.algo in ("ac", "ca"):
+        from ac.network import ActorNetwork
+        if a.algo == "ac":
+            from ac.config import ACConfig as _Cfg; from ac.evaluate import ac_policy_fn as _pf
+        else:
+            from ca.config import CAConfig as _Cfg; from ca.evaluate import ca_policy_fn as _pf
+        cfg = _Cfg(); net = ActorNetwork(cfg.input_dim, cfg.hidden_sizes, cfg.n_actions)
+        net.load_state_dict(torch.load(a.checkpoint, map_location="cpu")); net.eval()
+        policy = _pf(net, "cpu", greedy=True); print(f"policy builder: {a.algo}.evaluate (greedy)")
     else:
         from ppo.config import PPOConfig; from ppo.actor_critic import ActorCritic
         try:

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ------------------------------------------------------------------ #
-ALGOS = ["dqn", "ppo"]        # EDIT: one algorithm ("ppo") gives the single-algorithm figure
+ALGOS = ["dqn", "ppo", "ac", "ca"]        # EDIT: one algorithm ("ppo") gives the single-algorithm figure
 SEEDS = [0, 1, 2]                   # EDIT: training seeds that were trained AND evaluated, e.g. [0, 1, 2]
 NETS = [("4x4", "4x4 grid\n(trained on)", 16), ("3x3", "3x3 grid\n(unseen topology)", 9)]   # (tag, label, n_junctions)
 OUT_DIR = os.path.join(ROOT, "runs", "aggregate")

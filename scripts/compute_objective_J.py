@@ -10,7 +10,7 @@ The table is printed twice per network: once with Fixed-time 90 s as the referen
 import json, os
 import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ALGOS, SEEDS = ["dqn", "ppo"], [0, 1, 2]
+ALGOS, SEEDS = ["dqn", "ppo", "ac", "ca"], [0, 1, 2]
 NETS = [("4x4", 16), ("3x3", 9)]
 LAMBDA_S, GAMMA, STEPS = 0.3, 0.99, 720
 BASE = [("random", "Random"), ("always_switch", "Always-switch (10 s, old baseline)"), ("fixed_cycle", "Tuned fixed-cycle (10 s, old baseline)"), ("max_pressure", "Max-pressure")]

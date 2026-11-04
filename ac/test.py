@@ -1,15 +1,11 @@
 """
 ac/test.py
-==========
-A quick, single-episode sanity check for a trained AC or CA actor
-checkpoint -- NOT the full evaluation protocol (that's evaluate.py).
-Mirrors dqn/test.py and ppo/test.py exactly.
+=============
+Single-episode sanity check of a trained AC checkpoint (NOT the evaluation protocol -- that is evaluate.py). Same metrics as dqn/test.py,
+ppo/test.py (from the shared eval_common.run_episode; switches are counted from info["executed_actions"]).
 
-Usage:
-    python -m ac.test --checkpoint runs/ac_run1/actor_final.pt
-    python -m ac.test --checkpoint runs/ca_run1/actor_final.pt --stochastic
+    python -m ac.test --checkpoint runs/ac_seed0/actor_final.pt        (or press Play)
 """
-
 from __future__ import annotations
 
 import argparse
@@ -18,82 +14,32 @@ import sys
 
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
-from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
+from environment.eval_protocol import default_env_files, run_sanity_check  # noqa: E402
 from ac.config import ACConfig  # noqa: E402
 from ac.network import ActorNetwork  # noqa: E402
-
-
-def run_episode(actor, env, seed, device, greedy=True):
-    obs, _ = env.reset(seed=seed)
-    total_reward = 0.0
-    n_switches = 0
-    n_forced = 0
-    wait_sum = 0.0
-    steps = 0
-    while True:
-        x = torch.as_tensor(obs["node_features"], dtype=torch.float32, device=device)
-        if greedy:
-            actions = actor.act_greedy(x).cpu().numpy()
-        else:
-            actions, _, _ = actor.act(x)
-            actions = actions.cpu().numpy()
-        obs, reward, terminated, truncated, info = env.step(actions)
-        total_reward += reward
-        n_switches += int(actions.sum())
-        n_forced += int(info["forced_switches"].sum())
-        # UNCAPPED, from TrafficGridEnv's own accumulator -- NOT
-        # obs["node_features"][:, 4:8].sum()*env.WAIT_NORM, which is
-        # clipped to [0,1] before WAIT_NORM in _get_obs() and silently
-        # caps each junction's contribution at WAIT_NORM.
-        wait_sum += info["total_waiting_time"]
-        steps += 1
-        if terminated or truncated:
-            break
-    return {
-        "steps": steps,
-        "total_reward": total_reward,
-        "mean_waiting_time": wait_sum / steps,
-        "final_step_waiting_time": info["total_waiting_time"],
-        "throughput": info["throughput"],
-        "n_switch_votes": n_switches,
-        "n_forced_switches": n_forced,
-    }
+from ac.evaluate import ac_policy_fn, DEFAULT_CHECKPOINT  # noqa: E402
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", required=True, help="path to an actor_*.pt checkpoint")
-    parser.add_argument("--net_file", default="sumo_4x4_network/grid4x4.net.xml")
-    parser.add_argument("--route_file", default="sumo_4x4_network/routes.rou.xml")
-    parser.add_argument("--seed", type=int, default=123)
-    parser.add_argument("--stochastic", action="store_true",
-                         help="sample from the policy instead of taking the argmax action")
-    parser.add_argument("--gui", action="store_true")
-    args = parser.parse_args()
-
+    net, route = default_env_files("4x4")
+    p = argparse.ArgumentParser()
+    p.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT)
+    p.add_argument("--net_file", default=net)
+    p.add_argument("--route_file", default=route)
+    p.add_argument("--seed", type=int, default=123)
+    p.add_argument("--stochastic", action="store_true")
+    p.add_argument("--gui", action="store_true")
+    args, _ = p.parse_known_args()
+    if not os.path.exists(args.checkpoint):
+        sys.exit(f"ERROR: checkpoint not found: {args.checkpoint}")
     cfg = ACConfig()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    actor = ActorNetwork(cfg.input_dim, cfg.hidden_sizes, cfg.n_actions).to(device)
-    actor.load_state_dict(torch.load(args.checkpoint, map_location=device))
+    actor = ActorNetwork(cfg.input_dim, cfg.hidden_sizes, cfg.n_actions)
+    actor.load_state_dict(torch.load(args.checkpoint, map_location="cpu"))
     actor.eval()
-
-    env_cfg = GridEnvConfig(
-        net_file=args.net_file, route_file=args.route_file,
-        episode_seconds=cfg.episode_seconds, decision_interval=cfg.decision_interval,
-        use_gui=args.gui,
-    )
-    env = TrafficGridEnv(env_cfg)
-
-    result = run_episode(actor, env, args.seed, device, greedy=not args.stochastic)
-    env.close()
-
-    print("Single-episode sanity check")
-    print("-" * 40)
-    for k, v in result.items():
-        print(f"{k:>22s}: {v}")
+    run_sanity_check(ac_policy_fn(actor, "cpu", greedy=not args.stochastic), args, cfg.episode_seconds, cfg.decision_interval)
 
 
 if __name__ == "__main__":

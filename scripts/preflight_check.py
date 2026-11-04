@@ -30,6 +30,9 @@ for rel, needles in {
     "scripts/eval_fixed_time.py": ["fixed_time_policy", "fixed_time_choice.json", "sanity_checks"],
     "scripts/sweep_fixed_time_split.py": ["CANDIDATES", "fixed_time_choice.json"],
     "scripts/make_fixed_time_figures.py": ["summary_fixedtime.json", "figures_fixedtime"],
+    "environment/online_trainer.py": ["training_env_seed", "executed action mismatch", "config.json"],
+    "environment/eval_protocol.py": ["base_seed + 9999", "max_pressure_policy_fn"],
+    "ac/train.py": ["cli_run"], "ca/train.py": ["cli_run"], "ac/network.py": ["mask_switch_logits"],
 }.items():
     t = text(rel)
     check(t is not None and all(n in t for n in needles), f"{rel} is the final version", "missing file" if t is None else "")
@@ -52,6 +55,15 @@ try:
     for name in ("gamma", "reward_clip", "decision_interval", "episode_seconds"):
         check(getattr(d, name) == getattr(p, name), f"same {name}", f"{getattr(d, name)} vs {getattr(p, name)}")
     check(tuple(d.hidden_sizes) == tuple(p.hidden_sizes), "same hidden sizes", f"{d.hidden_sizes} vs {p.hidden_sizes}")
+    from ac.config import ACConfig
+    from ca.config import CAConfig
+    for nm, o in (("AC", ACConfig()), ("CA", CAConfig())):
+        check(o.total_env_steps == d.total_env_steps == 360_000, f"{nm}: same training budget (360,000 env steps = 500 episodes)", str(o.total_env_steps))
+        for name in ("reward_clip", "decision_interval", "episode_seconds"):
+            check(getattr(o, name) == getattr(d, name), f"{nm}: same {name}", f"{getattr(o, name)} vs {getattr(d, name)}")
+        check(tuple(o.hidden_sizes) == tuple(d.hidden_sizes), f"{nm}: same hidden sizes", str(o.hidden_sizes))
+        check(o.checkpoint_every == d.checkpoint_every == 18_000 and o.log_every == 720, f"{nm}: episode-aligned logging / checkpoints")
+    check(ACConfig().gamma == d.gamma and ACConfig().variant == "ac", "AC: gamma matches and variant == 'ac'")
     check(p.scale_value_loss is True, "PPO scale_value_loss is enabled (decided from the gradient probe)", f"{p.scale_value_loss}")
 except Exception as e:
     check(False, "could not import dqn.config / ppo.config", repr(e))

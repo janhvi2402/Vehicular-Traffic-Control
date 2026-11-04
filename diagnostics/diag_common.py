@@ -35,11 +35,13 @@ DEFAULT_ALGO = "dqn"
 DEFAULT_CHECKPOINTS = {
     "dqn": os.path.join(PROJECT_ROOT, "runs", "dqn_seed0", "qnet_final.pt"),
     "ppo": os.path.join(PROJECT_ROOT, "runs", "ppo_seed0", "actor_critic_final.pt"),
+    "ac": os.path.join(PROJECT_ROOT, "runs", "ac_seed0", "actor_final.pt"),
+    "ca": os.path.join(PROJECT_ROOT, "runs", "ca_seed0", "actor_final.pt"),
 }
 
 
 def add_common_args(p: argparse.ArgumentParser):
-    p.add_argument("--algo", default=DEFAULT_ALGO, choices=["dqn", "ppo"])
+    p.add_argument("--algo", default=DEFAULT_ALGO, choices=["dqn", "ppo", "ac", "ca"])
     p.add_argument("--checkpoint", default=None, help="default: DEFAULT_CHECKPOINTS[algo]")
     p.add_argument("--seed", type=int, default=1000, help="SUMO seed of the episode that is run (eval seeds start at 1000)")
     p.add_argument("--net_file", default=DEFAULT_NET)
@@ -82,7 +84,7 @@ def footer(fig, args, extra=""):
 
 
 def load_policy(algo, checkpoint):
-    """Deterministic policy: DQN greedy (epsilon=0), PPO argmax. Same choice as the evaluate.py scripts."""
+    """Deterministic policy: DQN greedy (epsilon=0), PPO / AC / CA argmax of the masked logits. Same choice as the evaluate.py scripts."""
     import torch  # lazy: compare_algorithms.py does not need torch
     device = "cpu"
     if algo == "dqn":
@@ -98,6 +100,21 @@ def load_policy(algo, checkpoint):
 
         def policy(obs):   # epsilon=0 (greedy) with the same eligibility masking the trainer/evaluate use
             return select_actions_epsilon_greedy(net, obs["node_features"], 0.0, rng, device)
+    elif algo in ("ac", "ca"):
+        from environment.eligibility import eligibility_from_features
+        from ac.network import ActorNetwork
+        if algo == "ac":
+            from ac.config import ACConfig as _Cfg
+        else:
+            from ca.config import CAConfig as _Cfg
+        cfg = _Cfg()
+        net = ActorNetwork(cfg.input_dim, cfg.hidden_sizes, cfg.n_actions)
+        net.load_state_dict(torch.load(checkpoint, map_location=device))
+        net.eval()
+
+        def policy(obs):   # argmax over masked logits
+            x = torch.as_tensor(obs["node_features"], dtype=torch.float32)
+            return net.act_greedy(x, torch.as_tensor(eligibility_from_features(obs["node_features"]))).numpy()
     else:
         from ppo.config import PPOConfig
         from ppo.actor_critic import ActorCritic

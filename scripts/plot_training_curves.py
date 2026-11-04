@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ------------------------------------------------------------------ #
-ALGOS = ["dqn", "ppo"]        # EDIT (add "ac", "ca" once they exist)
+ALGOS = ["dqn", "ppo", "ac", "ca"]        # EDIT
 SEEDS = [0, 1, 2]                   # EDIT
 SMOOTH = 10                   # episodes
 # ------------------------------------------------------------------ #
@@ -25,7 +25,9 @@ STEPS_PER_EPISODE = 720
 COLORS = {"dqn": "#0F6E56", "ppo": "#2B5FA8", "ac": "#B5651D", "ca": "#7B3FA0"}
 LABELS = {"dqn": "DQN", "ppo": "PPO", "ac": "AC", "ca": "CA"}
 EXTRA = {"dqn": [("loss", "DQN Huber loss", True), ("epsilon", "epsilon (exploration)", False)],
-         "ppo": [("entropy", "policy entropy", False), ("value_loss", "value loss", True), ("policy_loss", "policy loss", False)]}
+         "ppo": [("entropy", "policy entropy", False), ("value_loss", "value loss", True), ("policy_loss", "policy loss", False)],
+         "ac": [("entropy", "policy entropy", False), ("critic_loss", "critic loss", True), ("abs_td_error", "|TD error|", True)],
+         "ca": [("entropy", "policy entropy", False), ("critic_loss", "critic loss", True), ("abs_td_error", "|TD error|", True)]}
 
 
 def load(algo, seed):
