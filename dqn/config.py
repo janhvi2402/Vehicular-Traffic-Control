@@ -121,11 +121,13 @@ class DQNConfig:
     epsilon_end: float = 0.1              # paper: final exploration value
     epsilon_decay_fraction: float = 0.10  # fraction of total_env_steps to anneal over
 
-    # Paper's evaluation protocol uses a fixed, lower epsilon=0.05 at test
-    # time (still epsilon-greedy, not fully greedy) "to minimize the
-    # possibility of overfitting during evaluation". We use exactly this
-    # value in test.py / evaluate.py.
-    eval_epsilon: float = 0.00
+    # Evaluation is FULLY GREEDY (epsilon = 0) for every algorithm in this study (DQN, PPO, AC, CA):
+    # PPO/AC/CA are evaluated with argmax actions, so DQN must not be evaluated with extra random
+    # actions (Mnih et al.'s 0.05 would only ever lower DQN's score). Nothing in the code reads this
+    # field; dqn/evaluate.py and dqn/test.py take --eval_epsilon (default 0.0). Pass 0.05 there only
+    # to reproduce the original Atari protocol in a DQN-only experiment, and never compare that run
+    # against the other algorithms.
+    eval_epsilon: float = 0.0
 
     # ---------------------------------------------------------------- #
     # Reward handling
@@ -140,19 +142,50 @@ class DQNConfig:
     # apply soft clipping to a wide band, purely to guard against rare
     # outlier transitions (e.g. a teleport event) destabilizing a
     # minibatch, while preserving relative magnitude for everything else.
-    reward_clip: float = 90.0   # clip agent_rewards to [-reward_clip, +reward_clip]
+    reward_clip: float = 50.0   # clip agent_rewards to [-reward_clip, +reward_clip]
 
     # ---------------------------------------------------------------- #
     # Training length / episode
     # ---------------------------------------------------------------- #
-    total_env_steps: int = 150_000   # total decision steps (across all episodes)
+    # FIX: this field previously read 150_000 (≈208 episodes) while
+    # train.py's own CLI default (DEFAULT_TOTAL_EPISODES=1000) silently
+    # overrode it to 720,000 steps on every normal run -- meaning anyone
+    # reading this file in isolation, or calling train() directly rather
+    # than through the CLI, would get a materially different (much
+    # shorter) run than what "python -m dqn.train" actually produces.
+    # Set to 360,000 = 500 episodes (episode_seconds/decision_interval =
+    # 720 steps/episode x 500), matching ppo/config.py's total_updates=500
+    # exactly -- this is the MATCHED-COMPARISON budget both algorithms
+    # must share episode-for-episode (a mismatched budget between DQN and
+    # PPO undermines the whole comparison regardless of any other
+    # hyperparameter fix). For a longer, PPO-independent research run,
+    # override with --episodes/--steps on the CLI as before; just don't
+    # let a "matched" DQN-vs-PPO comparison run either side at a
+    # different episode count than the other.
+    total_env_steps: int = 360_000   # total decision steps (across all episodes) = 500 episodes
     episode_seconds: int = 3600      # matches the network's route file demand horizon
     decision_interval: int = 5       # seconds of sim time per decision (env default)
     seed: int = 0
 
     # logging / checkpointing
-    log_every: int = 200             # env steps between console/CSV logging
-    checkpoint_every: int = 25_000   # env steps between checkpoint saves (raised from 5,000:
-                                      # at 5,000 a 1000-episode/720,000-step research run would
-                                      # write 144 checkpoint files; at 25,000 it writes ~29,
-                                      # keeping disk usage manageable on a student account)
+    # FIX: was 200. That doesn't divide the 720-step episode length, so
+    # DQN's logged total_waiting_time/episode_reward were mid-episode
+    # snapshots at a semi-arbitrary phase of whichever episode happened to
+    # be running -- while PPO's train_log.csv (one row per update, and one
+    # update is exactly one 720-step episode) always logs the END of a
+    # completed episode. Comparing those two curves side by side wasn't
+    # comparing the same thing. Set to 720 = steps_per_episode, so DQN
+    # also logs exactly once per completed episode, at the same point in
+    # the episode (the last step) that PPO does -- now both training
+    # curves are the same kind of quantity: end-of-episode totals.
+    log_every: int = 720             # env steps between console/CSV logging (= 1 episode)
+    # FIX: was 25_000 (≈34.7 episodes -- doesn't land on an episode
+    # boundary). PPO checkpoints every 25 UPDATES, and one update is
+    # exactly one 720-step episode, so PPO's cadence is exactly 25
+    # episodes. Set to 25 x 720 = 18,000 so DQN checkpoints at the same
+    # 25-episode cadence -- only matters if you ever compare a
+    # partially-trained checkpoint's behavior between the two algorithms
+    # (the final checkpoint is unaffected either way). At the 360,000-step
+    # default this writes 20 checkpoints (500 episodes / 25); for a
+    # longer, independent research run it scales the same way.
+    checkpoint_every: int = 18_000   # env steps between checkpoint saves (= 25 episodes)
