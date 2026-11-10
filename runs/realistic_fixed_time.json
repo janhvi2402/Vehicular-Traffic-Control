@@ -133,6 +133,12 @@
       "split_side_green": 20
     }
   },
+  "_sumo": {
+    "binary": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\bin\\sumo.EXE",
+    "version": "Eclipse SUMO sumo 1.27.1",
+    "python": "C:\\Users\\STUDENT\\.conda\\envs\\traffic\\python.exe",
+    "traci": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\tools\\traci\\__init__.py"
+  },
   "3x3": {
     "Fixed-time 90 s": {
       "total_reward": {

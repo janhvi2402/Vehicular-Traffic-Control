@@ -372,5 +372,11 @@
     }
   },
   "fixed_cycle_seconds_used": 10.0,
-  "normalized_performance_pct_vs_fixed_cycle": 173.8996403493872
+  "normalized_performance_pct_vs_fixed_cycle": 173.8996403493872,
+  "sumo": {
+    "binary": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\bin\\sumo.EXE",
+    "version": "Eclipse SUMO sumo 1.27.1",
+    "python": "C:\\Users\\STUDENT\\.conda\\envs\\traffic\\python.exe",
+    "traci": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\tools\\traci\\__init__.py"
+  }
 }
