@@ -48,7 +48,7 @@ def plot_run(s, path, algo, net):
             mu = [(s[k]["n_switch_votes"]["mean"] + s[k]["n_forced_switches"]["mean"]) / nj for k, _, _ in ent]; sd = [float(np.hypot(s[k]["n_switch_votes"]["std"], s[k]["n_forced_switches"]["std"])) / nj for k, _, _ in ent]   # std of voted + forced changes (independence assumed)
         else:
             mu = [s[k][m]["mean"] for k, _, _ in ent]; sd = [s[k][m]["std"] for k, _, _ in ent]
-        ax.bar([lab for _, lab, _ in ent], mu, yerr=sd, capsize=4, color=[c for _, _, c in ent]); ax.set_title(title, fontsize=10); ax.tick_params(axis="x", labelrotation=15)
+        ax.bar([lab for _, lab, _ in ent], mu, yerr=sd, capsize=4, color=[c for _, _, c in ent]); ax.set_title(title, fontsize=10); plt.setp(ax.get_xticklabels(), rotation=35, ha="right", rotation_mode="anchor")
     fig.suptitle(f"{algo.upper()} vs baselines on the {net} grid (mean ± std over evaluation episodes)", fontsize=12); fig.tight_layout()
     os.makedirs(os.path.dirname(path), exist_ok=True); fig.savefig(path, dpi=150); plt.close(fig); print("saved", path)
 

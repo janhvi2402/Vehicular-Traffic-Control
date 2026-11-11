@@ -15,6 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from environment.grid_env import TrafficGridEnv, GridEnvConfig
 from environment.eval_common import run_episode, run_policy_over_seeds, summarize
+from environment.sumo_info import sumo_info
 
 CYCLES = [90, 60]
 EPISODES, BASE_SEED = 10, 1000
@@ -93,5 +94,6 @@ if __name__ == "__main__":
                   f"phase changes per junction per episode {changes:.1f}, teleports {s['n_teleports']['mean']:.1f}", flush=True)
             sanity_checks(env, policy, s, cyc, main_g, side_g, changes)
         env.close()
+        out["_sumo"] = sumo_info()
         json.dump(out, open(path, "w"), indent=2)
     print("saved", path)

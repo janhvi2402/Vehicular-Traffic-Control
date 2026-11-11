@@ -82,7 +82,7 @@ def main():
         for i, v in enumerate(pts):
             if policies[i] in S and len(v) > 1:
                 ax.scatter([i] * len(v), v, color="k", s=12, zorder=3)
-        ax.set_title(title, fontsize=10); ax.tick_params(axis="x", labelrotation=15)
+        ax.set_title(title, fontsize=10); plt.setp(ax.get_xticklabels(), rotation=35, ha="right", rotation_mode="anchor")
         print(f"{m:36s}" + "".join(f"{(f'{mu:.2f}±{e:.2f}'):>22s}" for mu, e in zip(means, errs)))
         if m == "mean_waiting_time":
             for ref_key in ("fixed_cycle", "fixed_time_90", "fixed_time_60"):

@@ -5,7 +5,8 @@ Output: runs/<algo>_seed<N>/eval_4x4/ and eval_3x3/  (read by diagnostics/compar
 """
 import glob, hashlib, json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+sys.path.insert(0, ROOT)
+from environment.sumo_info import stamp_summary
 # ------------------------------- EDIT ------------------------------- #
 ALGOS = os.environ.get("EVAL_ALGOS", "dqn,ppo,ac,ca").split(",")     # env vars let you launch one process per seed/algorithm in parallel
 SEEDS = [int(x) for x in os.environ.get("EVAL_SEEDS", "0,1,2").split(",")]   # e.g. EVAL_SEEDS=1 python scripts/run_eval.py
@@ -62,4 +63,7 @@ for algo in ALGOS:
             if cycle is not None: cmd += ["--fixed_cycle_seconds", str(cycle)]
             print("\n$", " ".join(cmd), flush=True)
             subprocess.run(cmd, cwd=ROOT, check=True)
+            _sp = os.path.join(ROOT, run_dir, f"eval_{name}", "summary.json")
+            if os.path.exists(_sp):
+                print("SUMO used:", stamp_summary(_sp)["version"], flush=True)
 print("\nAll evaluations complete.")
