@@ -73,7 +73,7 @@ def train_online(make_agent, cfg, net_file: str, route_file: str, out_dir: str, 
     steps_per_episode = cfg.episode_seconds // cfg.decision_interval
     start_step, episode = 0, 0
     if resume_from:
-        state = torch.load(resume_from, map_location=device)
+        state = torch.load(resume_from, map_location=device, weights_only=False)   # our own resume file (holds optimizer state)
         agent.load_state_dict(state["agent"])
         start_step, episode = int(state["step"]), int(state["episode"])
         print(f"Resumed {algo} from {resume_from}: step {start_step}, episode {episode}")

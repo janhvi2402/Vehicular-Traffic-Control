@@ -26,6 +26,7 @@ from environment.grid_env import TrafficGridEnv, GridEnvConfig  # noqa: E402
 from environment.eval_common import (  # noqa: E402
     random_policy_fn, fixed_cycle_policy_fn, always_switch_policy_fn, max_pressure_policy_fn, run_episode,
     run_policy_over_seeds, summarize, plot_comparison, build_results_table, print_results_table, save_results_table_csv)
+from environment.sumo_info import sumo_info  # noqa: E402
 
 _NETS = {"4x4": ("sumo_4x4_network", ["grid4x4.net.xml", "grid4x4_net.xml"], ["routes.rou.xml", "routes_rou.xml"]),
          "3x3": ("sumo_3x3_network", ["grid3x3.net.xml", "grid3x3_net.xml"], ["routes3x3.rou.xml", "routes3x3_rou.xml"])}
@@ -97,7 +98,7 @@ def run_standard_evaluation(policy_fn, *, algo_key: str, algo_label: str, args, 
 
     summaries = {"always_switch": summarize(always_rows), "max_pressure": summarize(maxp_rows),
                  "algo": summarize(algo_rows), algo_key: summarize(algo_rows), "random": summarize(random_rows),
-                 "fixed_cycle": summarize(fixed_rows), "fixed_cycle_seconds_used": chosen_cycle}
+                 "fixed_cycle": summarize(fixed_rows), "fixed_cycle_seconds_used": chosen_cycle, "sumo": sumo_info()}
     algo_r, rand_r, fixed_r = (summaries[k]["total_reward"]["mean"] for k in ("algo", "random", "fixed_cycle"))
     denom = fixed_r - rand_r
     normalized_pct = 100.0 * (algo_r - rand_r) / denom if abs(denom) > 1e-9 else float("nan")
