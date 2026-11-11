@@ -69,12 +69,13 @@ class CAAgent:
     def state_dict(self) -> dict:
         return {"actor": self.actor.state_dict(), "critic": self.critic.state_dict(),
                 "actor_opt": self.actor_opt.state_dict(), "critic_opt": self.critic_opt.state_dict(),
-                "avg_reward": None if self.avg_reward is None else self.avg_reward.copy()}
+                "avg_reward": None if self.avg_reward is None else torch.as_tensor(self.avg_reward.copy())}
 
     def load_state_dict(self, d: dict):
         self.actor.load_state_dict(d["actor"]); self.critic.load_state_dict(d["critic"])
         self.actor_opt.load_state_dict(d["actor_opt"]); self.critic_opt.load_state_dict(d["critic_opt"])
-        self.avg_reward = None if d["avg_reward"] is None else np.asarray(d["avg_reward"], dtype=np.float32)
+        a = d["avg_reward"]
+        self.avg_reward = None if a is None else np.asarray(a.detach().cpu().numpy() if hasattr(a, "detach") else a, dtype=np.float32)
 
     def save_policy(self, out_dir: str, tag: str):
         torch.save(self.actor.state_dict(), os.path.join(out_dir, f"actor_{tag}.pt"))
