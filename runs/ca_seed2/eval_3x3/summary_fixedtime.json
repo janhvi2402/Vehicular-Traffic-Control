@@ -1,4 +1,66 @@
 {
+  "always_switch": {
+    "total_reward": {
+      "mean": -700.5000000000034,
+      "std": 13.53698637068084
+    },
+    "mean_waiting_time": {
+      "mean": 99.01236111111112,
+      "std": 1.2422465477269395
+    },
+    "final_step_waiting_time": {
+      "mean": 52.5,
+      "std": 13.536986370680884
+    },
+    "throughput": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "mean_queue_length": {
+      "mean": 17.450277777777778,
+      "std": 0.15674372612328777
+    },
+    "n_switch_votes": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 18.500455187263455,
+      "std": 0.1496973215257217
+    },
+    "max_vehicle_wait": {
+      "mean": 95.6,
+      "std": 8.742997197757758
+    },
+    "n_vehicles_completed": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
   "max_pressure": {
     "total_reward": {
       "mean": -685.1499999999997,
@@ -247,6 +309,68 @@
       "std": 0.0
     }
   },
+  "fixed_cycle": {
+    "total_reward": {
+      "mean": -700.5000000000034,
+      "std": 13.53698637068084
+    },
+    "mean_waiting_time": {
+      "mean": 99.01236111111112,
+      "std": 1.2422465477269395
+    },
+    "final_step_waiting_time": {
+      "mean": 52.5,
+      "std": 13.536986370680884
+    },
+    "throughput": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "mean_queue_length": {
+      "mean": 17.450277777777778,
+      "std": 0.15674372612328777
+    },
+    "n_switch_votes": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "n_forced_switches": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_steps": {
+      "mean": 720.0,
+      "std": 0.0
+    },
+    "mean_vehicle_wait": {
+      "mean": 18.500455187263455,
+      "std": 0.1496973215257217
+    },
+    "max_vehicle_wait": {
+      "mean": 95.6,
+      "std": 8.742997197757758
+    },
+    "n_vehicles_completed": {
+      "mean": 3879.6,
+      "std": 2.8000000000000003
+    },
+    "n_teleports": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "ended_early": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "n_greens": {
+      "mean": 2160.0,
+      "std": 0.0
+    },
+    "share_greens_at_max_green": {
+      "mean": 0.0,
+      "std": 0.0
+    }
+  },
   "fixed_cycle_seconds_used": 10.0,
   "sumo": {
     "binary": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\bin\\sumo.EXE",
@@ -255,130 +379,6 @@
     "traci": "C:\\Users\\STUDENT\\Downloads\\sumo-win64extra-1.27.1\\sumo-1.27.1\\tools\\traci\\__init__.py"
   },
   "normalized_performance_pct_vs_fixed_cycle": 228.73779756809338,
-  "fixed_cycle_old": {
-    "total_reward": {
-      "mean": -700.5000000000034,
-      "std": 13.53698637068084
-    },
-    "mean_waiting_time": {
-      "mean": 99.01236111111112,
-      "std": 1.2422465477269395
-    },
-    "final_step_waiting_time": {
-      "mean": 52.5,
-      "std": 13.536986370680884
-    },
-    "throughput": {
-      "mean": 3879.6,
-      "std": 2.8000000000000003
-    },
-    "mean_queue_length": {
-      "mean": 17.450277777777778,
-      "std": 0.15674372612328777
-    },
-    "n_switch_votes": {
-      "mean": 2160.0,
-      "std": 0.0
-    },
-    "n_forced_switches": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "n_steps": {
-      "mean": 720.0,
-      "std": 0.0
-    },
-    "mean_vehicle_wait": {
-      "mean": 18.500455187263455,
-      "std": 0.1496973215257217
-    },
-    "max_vehicle_wait": {
-      "mean": 95.6,
-      "std": 8.742997197757758
-    },
-    "n_vehicles_completed": {
-      "mean": 3879.6,
-      "std": 2.8000000000000003
-    },
-    "n_teleports": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "ended_early": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "n_greens": {
-      "mean": 2160.0,
-      "std": 0.0
-    },
-    "share_greens_at_max_green": {
-      "mean": 0.0,
-      "std": 0.0
-    }
-  },
-  "always_switch_old": {
-    "total_reward": {
-      "mean": -700.5000000000034,
-      "std": 13.53698637068084
-    },
-    "mean_waiting_time": {
-      "mean": 99.01236111111112,
-      "std": 1.2422465477269395
-    },
-    "final_step_waiting_time": {
-      "mean": 52.5,
-      "std": 13.536986370680884
-    },
-    "throughput": {
-      "mean": 3879.6,
-      "std": 2.8000000000000003
-    },
-    "mean_queue_length": {
-      "mean": 17.450277777777778,
-      "std": 0.15674372612328777
-    },
-    "n_switch_votes": {
-      "mean": 2160.0,
-      "std": 0.0
-    },
-    "n_forced_switches": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "n_steps": {
-      "mean": 720.0,
-      "std": 0.0
-    },
-    "mean_vehicle_wait": {
-      "mean": 18.500455187263455,
-      "std": 0.1496973215257217
-    },
-    "max_vehicle_wait": {
-      "mean": 95.6,
-      "std": 8.742997197757758
-    },
-    "n_vehicles_completed": {
-      "mean": 3879.6,
-      "std": 2.8000000000000003
-    },
-    "n_teleports": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "ended_early": {
-      "mean": 0.0,
-      "std": 0.0
-    },
-    "n_greens": {
-      "mean": 2160.0,
-      "std": 0.0
-    },
-    "share_greens_at_max_green": {
-      "mean": 0.0,
-      "std": 0.0
-    }
-  },
   "fixed_time_90": {
     "total_reward": {
       "mean": -503.099999999997,

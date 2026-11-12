@@ -3,7 +3,7 @@
 | Policy | Waiting time (veh*s, per-step mean) | Wait per vehicle (s) | Queue length (veh) | Throughput (veh) | Phase changes / junction / episode | Teleports / episode | Improvement vs Fixed-time 60 s: Waiting time (%) | Improvement vs Fixed-time 60 s: Wait per vehicle (%) | Improvement vs Fixed-time 60 s: Queue length (%) |
 |---|---|---|---|---|---|---|---|---|---|
 | Random | 244.53 (±7.40, eval eps) | 27.89 (±0.33, eval eps) | 26.73 (±0.35, eval eps) | 3770.20 (±3.49, eval eps) | 179.34 | 0.00 (±0.00, eval eps) | 31.0 | 17.8 | 21.4 |
-| Fixed-time 90 s | 779.25 (±7.56, eval eps) | 48.31 (±0.32, eval eps) | 50.05 (±0.35, eval eps) | 3742.70 (±3.10, eval eps) | 80.00 | 0.00 (±0.00, eval eps) | -120.0 | -42.5 | -47.2 |
+| Fixed 10 s (tuned) | 98.80 (±0.74, eval eps) | 20.52 (±0.12, eval eps) | 18.36 (±0.12, eval eps) | 3781.40 (±3.26, eval eps) | 240.00 | 0.00 (±0.00, eval eps) | 72.1 | 39.5 | 46.0 |
 | Fixed-time 60 s | 354.14 (±4.15, eval eps) | 33.91 (±0.26, eval eps) | 34.00 (±0.28, eval eps) | 3754.20 (±3.92, eval eps) | 120.00 | 0.00 (±0.00, eval eps) | 0.0 | -0.0 | 0.0 |
 | Max-pressure | 82.25 (±1.41, eval eps) | 18.72 (±0.17, eval eps) | 16.26 (±0.18, eval eps) | 3779.70 (±3.63, eval eps) | 206.61 | 0.00 (±0.00, eval eps) | 76.8 | 44.8 | 52.2 |
 | DQN | 104.83 ± 18.10 | 20.62 ± 1.29 | 18.36 ± 1.43 | 3778.20 ± 1.49 | 181.51 ± 11.64 | 0.00 ± 0.00 | 70.4 ± 5.1 | 39.2 ± 3.8 | 46.0 ± 4.2 |
@@ -16,7 +16,7 @@
 | Policy | Waiting time (veh*s, per-step mean) | Wait per vehicle (s) | Queue length (veh) | Throughput (veh) | Phase changes / junction / episode | Teleports / episode | Improvement vs Fixed-time 60 s: Waiting time (%) | Improvement vs Fixed-time 60 s: Wait per vehicle (%) | Improvement vs Fixed-time 60 s: Queue length (%) |
 |---|---|---|---|---|---|---|---|---|---|
 | Random | 230.80 (±8.43, eval eps) | 24.89 (±0.31, eval eps) | 24.83 (±0.40, eval eps) | 3872.70 (±4.73, eval eps) | 180.14 | 0.00 (±0.00, eval eps) | 34.6 | 17.2 | 19.7 |
-| Fixed-time 90 s | 593.04 (±4.89, eval eps) | 37.24 (±0.27, eval eps) | 39.16 (±0.31, eval eps) | 3861.60 (±3.26, eval eps) | 80.00 | 0.00 (±0.00, eval eps) | -67.9 | -23.8 | -26.7 |
+| Fixed 10 s (tuned) | 99.01 (±1.24, eval eps) | 18.50 (±0.15, eval eps) | 17.45 (±0.16, eval eps) | 3879.60 (±2.80, eval eps) | 240.00 | 0.00 (±0.00, eval eps) | 72.0 | 38.5 | 43.6 |
 | Fixed-time 60 s | 353.14 (±6.46, eval eps) | 30.07 (±0.28, eval eps) | 30.92 (±0.30, eval eps) | 3868.30 (±2.19, eval eps) | 120.00 | 0.00 (±0.00, eval eps) | 0.0 | 0.0 | -0.0 |
 | Max-pressure | 89.16 (±1.42, eval eps) | 17.38 (±0.16, eval eps) | 16.10 (±0.19, eval eps) | 3881.90 (±3.21, eval eps) | 223.39 | 0.00 (±0.00, eval eps) | 74.8 | 42.2 | 47.9 |
 | DQN | 94.36 ± 7.29 | 17.78 ± 0.55 | 16.59 ± 0.62 | 3882.83 ± 1.89 | 206.50 ± 9.32 | 0.00 ± 0.00 | 73.3 ± 2.1 | 40.9 ± 1.8 | 46.4 ± 2.0 |
