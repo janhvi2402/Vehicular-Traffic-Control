@@ -24,7 +24,7 @@ METRICS = [("mean_waiting_time", "Mean waiting time per step (s)"),
            ("mean_vehicle_wait", "Mean wait per vehicle (s)"),
            ("mean_queue_length", "Mean queue length (vehicles)"),
            ("throughput", "Throughput (vehicles arrived)")]
-LABELS = {"fixed_cycle": "tuned fixed-time (old)", "fixed_time_90": "Fixed-time 90 s", "fixed_time_60": "Fixed-time 60 s", "max_pressure": "max-pressure"}
+LABELS = {"fixed_cycle": "Fixed 10 s (tuned)", "fixed_time_90": "Fixed-time 90 s", "fixed_time_60": "Fixed-time 60 s", "max_pressure": "max-pressure"}
 COLORS = {"fixed_time_90": "#C98A00", "fixed_time_60": "#E6B422", "random": "#993556", "fixed_cycle": "#854F0B",
           "max_pressure": "#7A7A7A", "dqn": "#0F6E56", "ppo": "#2B5FA8", "ac": "#B5651D", "ca": "#7B3FA0"}
 

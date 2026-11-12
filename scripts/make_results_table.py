@@ -10,7 +10,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALGOS = ["dqn", "ppo", "ac", "ca"]
 SEEDS = [0, 1, 2]
 NETS = [("4x4", 16), ("3x3", 9)]
-BASELINES = [("random", "Random"), ("always_switch", "Always-switch"), ("fixed_cycle", "Tuned fixed-time"), ("fixed_time_90", "Fixed-time 90 s"), ("fixed_time_60", "Fixed-time 60 s"), ("max_pressure", "Max-pressure")]
+BASELINES = [("random", "Random"), ("fixed_cycle", "Fixed 10 s (tuned)"), ("fixed_time_60", "Fixed-time 60 s"), ("max_pressure", "Max-pressure")]
 # Set by scripts/make_fixed_time_figures.py: improvements are computed against one fixed-time plan, read summary_fixedtime.json
 SUMMARY_NAME = os.environ.get("SUMMARY_NAME", "summary.json")
 BASELINE_KEY = os.environ.get("BASELINE_KEY", "fixed_cycle")

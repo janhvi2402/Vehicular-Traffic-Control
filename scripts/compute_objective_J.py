@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALGOS, SEEDS = ["dqn", "ppo", "ac", "ca"], [0, 1, 2]
 NETS = [("4x4", 16), ("3x3", 9)]
 LAMBDA_S, GAMMA, STEPS = 0.3, 0.99, 720
-BASE = [("random", "Random"), ("always_switch", "Always-switch (10 s, old baseline)"), ("fixed_cycle", "Tuned fixed-cycle (10 s, old baseline)"), ("max_pressure", "Max-pressure")]
+BASE = [("random", "Random"), ("always_switch", "Always-switch (= Fixed 10 s)"), ("fixed_cycle", "Fixed 10 s (tuned)"), ("max_pressure", "Max-pressure")]
 
 
 def terms(s, nj):

@@ -34,7 +34,8 @@ for n in NETS:
 
 def plot_run(s, path, algo, net):
     nj = s["fixed_time_90"]["n_agents"]
-    ent = [("random", "Random", "#993556")]
+    ent = [("random", "Random", "#993556"),("fixed_cycle", "Fixed 10 s\n(tuned)", "#854F0B")]
+    
     for k in KEYS:
         ent.append((k, f"Fixed-time {s[k]['cycle_seconds']} s\n(main {s[k]['split_main_green']} / side {s[k]['split_side_green']} s)", COLORS_FT[k]))
     ent += [("max_pressure", "Max-pressure", "#7B4FA0"), ("algo", algo.upper(), "#0F6E56")]
@@ -60,8 +61,6 @@ for a in ALGOS:
             d = os.path.join(ROOT, "runs", f"{a}_seed{sd}", f"eval_{n}"); p = os.path.join(d, "summary.json")
             if not os.path.exists(p): print("missing", p); continue
             s = json.load(open(p))
-            s["fixed_cycle_old"] = s.pop("fixed_cycle")
-            if "always_switch" in s: s["always_switch_old"] = s.pop("always_switch")
             for c in CYCLES: s[f"fixed_time_{c}"] = copy.deepcopy(field[n][plan_label(c)])
             json.dump(s, open(os.path.join(d, "summary_fixedtime.json"), "w"), indent=2)
             plot_run(s, os.path.join(ROOT, "runs", f"{a}_seed{sd}", "figures_fixedtime", f"baseline_comparison_{n}.png"), a, n); made += 1

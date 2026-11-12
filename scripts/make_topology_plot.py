@@ -21,7 +21,7 @@ NETS = [("4x4", "4x4 grid\n(trained on)", 16), ("3x3", "3x3 grid\n(unseen topolo
 OUT_DIR = os.path.join(ROOT, "runs", "aggregate")
 # ------------------------------------------------------------------ #
 COLORS = {"dqn": "#0F6E56", "ppo": "#2B5FA8", "ac": "#B5651D", "ca": "#7B3FA0", "max_pressure": "#7A7A7A", "fixed_cycle": "#854F0B"}
-LABELS = {"dqn": "DQN", "ppo": "PPO", "ac": "AC", "ca": "CA", "max_pressure": "Max-pressure", "fixed_cycle": "Tuned fixed-time"}
+LABELS = {"dqn": "DQN", "ppo": "PPO", "ac": "AC", "ca": "CA", "max_pressure": "Max-pressure", "fixed_cycle": "Fixed 10 s (tuned)"}
 LABELS.update({"fixed_time_90": "Fixed-time 90 s", "fixed_time_60": "Fixed-time 60 s"})
 COLORS.update({"fixed_time_90": "#C98A00", "fixed_time_60": "#E6B422"})
 # Set by scripts/make_fixed_time_figures.py: improvement against one fixed-time plan (BASELINE_KEY), read summary_fixedtime.json
@@ -84,9 +84,10 @@ for ax, (m, title) in zip(axes[:3], METRICS):
     for net, _, _ in NETS:
         print(f"{m:26s}{net:>8s}" + "".join(f"{np.mean([improvement(r, 'algo' if k in data else k, m) for r in runs[net]]):>14.1f}%" for k, _, _, runs in imp_entries))
 ent = [(a, LABELS[a], COLORS[a], data[a]) for a in algos]
+if all("fixed_cycle" in r for n, _, _ in NETS for r in ref[n]):
+    ent.append(("fixed_cycle", LABELS["fixed_cycle"], COLORS["fixed_cycle"], ref))
 ft_keys = [k for k in ("fixed_time_90", "fixed_time_60") if all(k in r for n, _, _ in NETS for r in ref[n])]
 ent += [(k, LABELS[k], COLORS[k], ref) for k in ft_keys]
-if not ft_keys: ent.append(("fixed_cycle", LABELS["fixed_cycle"], COLORS["fixed_cycle"], ref))   # old summary.json only
 if has_mp: ent.insert(len(algos), ("max_pressure", LABELS["max_pressure"], COLORS["max_pressure"], ref))
 bars(axes[3], ent, lambda r, key, i: per_junction(r, "algo" if key in data else key, NETS[i][2]), x)
 axes[3].set_title("Phase changes per junction per episode\n(voted + forced)", fontsize=10)
