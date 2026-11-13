@@ -66,6 +66,7 @@ def main():
     print(f"eligible decision points: {len(R)}   overall switch rate: {act.mean():.3f}")
     print("\nswitch rate by elapsed bin")
     rates, labels = [], []
+    ns, ks = [], []
     for lo, hi in BINS:
         m = (elapsed >= lo) & (elapsed < hi)
         labels.append(bin_label(lo, hi)); rates.append(act[m].mean() if m.any() else 0.0)
@@ -76,7 +77,12 @@ def main():
         print(f"  {name:45s} {corr(act, v):+.3f}")
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
-    axes[0].bar(labels, rates, color="#0F6E56"); axes[0].set_ylim(0, 1)
+    ci = [wilson(k, n) for k, n in zip(ks, ns)]
+    yerr = np.array([[r - l, h - r] for r, (l, h) in zip(rates, ci)]).T
+    b0 = axes[0].bar(labels, rates, yerr=yerr, capsize=4, color="#0F6E56")
+    for b, n, (l, h) in zip(b0, ns, ci):
+        axes[0].text(b.get_x() + b.get_width() / 2, h + 0.02, f"n={n}", ha="center", fontsize=8)
+    axes[0].set_ylim(0, 1.15)
     axes[0].set_xlabel("elapsed green time"); axes[0].set_ylabel("P(switch | eligible)")
     axes[0].set_title("Switch rate vs elapsed green time")
     m10 = (elapsed >= 10) & (elapsed < 15)
@@ -84,16 +90,30 @@ def main():
         q1, q3 = np.percentile(imb[m10], [33, 67])
         groups = [("Low\n(waiting<<served)", imb[m10] < q1), ("Mid", (imb[m10] >= q1) & (imb[m10] < q3)),
                   ("High\n(waiting>>served)", imb[m10] >= q3)]
-        axes[1].bar([g[0] for g in groups], [act[m10][g[1]].mean() if g[1].any() else 0 for g in groups], color="#993556")
+        a10 = act[m10]
+        ns_g = [int(g[1].sum()) for g in groups]
+        ks_g = [int(a10[g[1]].sum()) for g in groups]
+        rt_g = [k / n if n else 0.0 for k, n in zip(ks_g, ns_g)]
+        ci_g = [wilson(k, n) for k, n in zip(ks_g, ns_g)]
+        yerr = np.array([[r - l, h - r] for r, (l, h) in zip(rt_g, ci_g)]).T
+        b1 = axes[1].bar([g[0] for g in groups], rt_g, yerr=yerr, capsize=4, color="#993556")
+        for b, n, (l, h) in zip(b1, ns_g, ci_g):
+            axes[1].text(b.get_x() + b.get_width() / 2, h + 0.02, f"n={n}", ha="center", fontsize=9)
+        print("counts per imbalance tercile (elapsed 10-15 s):", ns_g)
         print("\nswitch rate by imbalance tercile at elapsed 10-15s:",
               [round(float(act[m10][g[1]].mean()), 3) if g[1].any() else None for g in groups])
-    axes[1].set_ylim(0, 1); axes[1].set_xlabel("waiting-side minus served-side wait")
+    axes[1].set_ylim(0, 1.15); axes[1].set_xlabel("waiting-side minus served-side wait")
     axes[1].set_ylabel("P(switch | eligible)"); axes[1].set_title("Switch rate vs congestion imbalance\n(fixed elapsed = 10-15 s)")
     fig.suptitle(f"Congestion-driven or timer-driven? {args.algo.upper()}")
     fig.tight_layout(rect=(0, 0.03, 1, 0.95)); footer(fig, args)
     out = default_out(args, "switching_behavior.png"); fig.savefig(out, dpi=150); plt.close(fig)
     print(f"\nsaved: {out}")
 
-
+def wilson(k, n, z=1.96):
+    if n == 0: return 0.0, 0.0
+    p = k / n; d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return max(0.0, c - h), min(1.0, c + h)
 if __name__ == "__main__":
     main()

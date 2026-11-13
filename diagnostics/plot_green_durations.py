@@ -15,9 +15,8 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from diagnostics.diag_common import (DEFAULT_CHECKPOINTS, DEFAULT_NET, DEFAULT_ROUTE, file_hash, load_policy, make_env,
-                                     run_logged_episode)
+                                     run_logged_episode,train_seed_from_checkpoint)
 
 
 def main():
@@ -57,7 +56,9 @@ def main():
     fig.tight_layout(rect=(0, 0.04, 1, 0.95))
     fig.text(0.005, 0.004, f"dqn={os.path.abspath(a.checkpoint_dqn)}  ppo={os.path.abspath(a.checkpoint_ppo)}  seed={a.seed}  "
              f"env_hash(net+routes)={file_hash(a.net_file, a.route_file)}", fontsize=6, color="0.35")
-    out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.checkpoint_dqn)), "figures", "green_durations_dqn_vs_ppo.png")
+    out = sd_, sp_ = train_seed_from_checkpoint(a.checkpoint_dqn), train_seed_from_checkpoint(a.checkpoint_ppo)
+    tag = f"seed{sd_}" if sd_ == sp_ else f"dqnseed{sd_}_pposeed{sp_}"
+    out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.checkpoint_dqn)), "figures", f"green_durations_dqn_vs_ppo_{tag}.png")
     os.makedirs(os.path.dirname(out), exist_ok=True); fig.savefig(out, dpi=150); plt.close(fig)
     print(f"saved: {out}")
 

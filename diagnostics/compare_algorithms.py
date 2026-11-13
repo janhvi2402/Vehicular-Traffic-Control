@@ -37,7 +37,7 @@ def main():
     p.add_argument("--summary_name", default="eval_4x4/summary.json")
     p.add_argument("--out", default=None)
     args, _ = p.parse_known_args()
-
+    p.add_argument("--drop", nargs="*", default=[], help="baseline keys to leave out of the figure")
     S, files = {}, []
     for a in args.algos:
         S[a] = []
@@ -51,6 +51,7 @@ def main():
 
     base_runs = [s for a in S for s in S[a]]
     BASELINES = [b for b in ("random", "fixed_cycle", "fixed_time_90", "fixed_time_60", "max_pressure") if all(b in r for r in base_runs)]
+    BASELINES = [b for b in BASELINES if b not in args.drop]
     for pol in BASELINES:
         for m, _ in METRICS:
             v = [r[pol][m]["mean"] for r in base_runs if m in r[pol]]
@@ -78,7 +79,10 @@ def main():
                 vals = [r["algo"][m]["mean"] for r in S[pol] if m in r["algo"]]
                 err = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
             means.append(float(np.mean(vals)) if vals else np.nan); errs.append(err); pts.append(vals)
-        ax.bar([LABELS.get(p_, p_) for p_ in policies], means, yerr=errs, capsize=5, color=[COLORS.get(p_, "#777777") for p_ in policies])
+        bars = ax.bar([LABELS.get(p_, p_) for p_ in policies], means, yerr=errs, capsize=5, color=[COLORS.get(p_, "#777777") for p_ in policies])
+        ax.bar_label(bars, labels=[f"{v:.1f}" if abs(v) >= 10 else f"{v:.2f}" for v in means], fontsize=7, padding=3,
+                    rotation=90 if len(policies) > 6 else 0)
+        ax.margins(y=0.15)
         for i, v in enumerate(pts):
             if policies[i] in S and len(v) > 1:
                 ax.scatter([i] * len(v), v, color="k", s=12, zorder=3)

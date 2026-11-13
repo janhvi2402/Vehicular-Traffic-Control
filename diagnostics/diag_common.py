@@ -11,7 +11,7 @@ import argparse
 import hashlib
 import os
 import sys
-
+import re
 import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +39,14 @@ DEFAULT_CHECKPOINTS = {
     "ca": os.path.join(PROJECT_ROOT, "runs", "ca_seed0", "actor_final.pt"),
 }
 
+def train_seed_from_checkpoint(path):
+    m = re.search(r"_seed(\d+)", os.path.basename(os.path.dirname(os.path.abspath(path))))
+    return m.group(1) if m else "unknown"
+
+def tagged_name(args, name):
+    stem, ext = os.path.splitext(name)
+    extra = "" if args.seed == 1000 else f"_eval{args.seed}"
+    return f"{stem}_{args.algo}_seed{train_seed_from_checkpoint(args.checkpoint)}{extra}{ext}"
 
 def add_common_args(p: argparse.ArgumentParser):
     p.add_argument("--algo", default=DEFAULT_ALGO, choices=["dqn", "ppo", "ac", "ca"])
@@ -66,7 +74,7 @@ def default_out(args, name):
         return args.out
     d = os.path.join(os.path.dirname(os.path.abspath(args.checkpoint)), "figures")
     os.makedirs(d, exist_ok=True)
-    return os.path.join(d, name)
+    return os.path.join(d, tagged_name(args, name))
 
 
 def file_hash(*paths):
