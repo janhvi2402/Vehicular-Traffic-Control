@@ -68,7 +68,8 @@ def bars(ax, entries, value_fn, x):
     for k, (key, lab, col, runs) in enumerate(entries):
         vals = [[value_fn(r, key, i) for r in runs[net]] for i, (net, _, _) in enumerate(NETS)]
         mu = [np.mean(v) for v in vals]; sd = [np.std(v, ddof=1) if len(v) > 1 else 0.0 for v in vals]
-        ax.bar(x + (k - (len(entries) - 1) / 2) * w, mu, w, yerr=sd if len(SEEDS) > 1 else None, capsize=4, label=lab, color=col)
+        cont = ax.bar(x + (k - (len(entries) - 1) / 2) * w, mu, w, yerr=sd if len(SEEDS) > 1 else None, capsize=4, label=lab, color=col)
+        ax.bar_label(cont, labels=[f"{m_:.1f}" for m_ in mu], fontsize=6, rotation=90, padding=2)
     ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in NETS]); ax.legend(fontsize=8)
 
 
@@ -80,6 +81,10 @@ print(f"{'metric':26s}{'network':>8s}" + "".join(f"{LABELS[k]:>15s}" for k, *_ i
 for ax, (m, title) in zip(axes[:3], METRICS):
     bars(ax, imp_entries, lambda r, key, i, m=m: improvement(r, "algo" if key in data else key, m), x)
     ax.axhline(0, color="k", lw=0.8)
+    hs = [pt.get_height() for pt in ax.patches]
+    lo_, hi_ = min(hs), max(hs); span = max(hi_ - lo_, 1.0)
+    ax.set_ylim(lo_ - 0.8 * span, hi_ + 0.35 * span)
+    ax.set_ylabel("improvement (%); zoomed, y-axis does not start at 0")
     ax.set_title(f"{title}: improvement over {LABELS[BASELINE_KEY]} (%)\n(higher = better; 0 = same as {LABELS[BASELINE_KEY]})", fontsize=10)
     for net, _, _ in NETS:
         print(f"{m:26s}{net:>8s}" + "".join(f"{np.mean([improvement(r, 'algo' if k in data else k, m) for r in runs[net]]):>14.1f}%" for k, _, _, runs in imp_entries))

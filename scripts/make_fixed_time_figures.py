@@ -1,10 +1,11 @@
 """
 scripts/make_fixed_time_figures.py -- Play button, no arguments, a few minutes. Run it AFTER scripts/eval_fixed_time.py.
-Shows BOTH fixed-time plans (90 s and 60 s) in every combined figure/table. It does NOT re-run run_eval and touches no trained model or
-summary.json: for every run it writes a COPY, eval_<net>/summary_fixedtime.json, in which the old fixed_cycle / always_switch results are renamed
-fixed_cycle_old / always_switch_old and fixed_time_90 / fixed_time_60 are added. Outputs:
+Shows BOTH fixed-time plans (90 s and 60 s) and the old tuned 10 s fixed cycle in every combined figure/table. It does NOT re-run run_eval and
+touches no trained model or summary.json: for every run it writes a COPY, eval_<net>/summary_fixedtime.json, in which fixed_time_90 / fixed_time_60
+are ADDED and the old fixed_cycle (10 s) / always_switch results are KEPT. Outputs:
   runs/<algo>_seed<N>/figures_fixedtime/baseline_comparison_<net>.png
   runs/aggregate/compare_algorithms_<net>_fixedtime.png
+  runs/aggregate/compare_algorithms_<net>_agents_vs_maxpressure.png     (no Random / 90 s / 60 s bars, so the agents are easier to compare)
   runs/aggregate/topology_generalization_dqn_ppo_fixedtime_vs90.png and ..._vs60.png
   runs/aggregate/results_table_fixedtime_vs90.md/.csv and ..._vs60.md/.csv      (improvement against each plan)
 and finally prints the objective-J table. Training curves / behaviour diagnostics do not depend on the baseline.
@@ -30,12 +31,11 @@ for n in NETS:
     for c in CYCLES:
         if plan_label(c) not in field.get(n, {}):
             sys.exit(f"SKIP: '{plan_label(c)}' missing for {n} in runs/realistic_fixed_time.json -- run scripts/eval_fixed_time.py.")
-
-
+ 
+ 
 def plot_run(s, path, algo, net):
     nj = s["fixed_time_90"]["n_agents"]
-    ent = [("random", "Random", "#993556"),("fixed_cycle", "Fixed 10 s\n(tuned)", "#854F0B")]
-    
+    ent = [("random", "Random", "#993556"), ("fixed_cycle", "Fixed 10 s\n(tuned)", "#3D2B1F")]
     for k in KEYS:
         ent.append((k, f"Fixed-time {s[k]['cycle_seconds']} s\n(main {s[k]['split_main_green']} / side {s[k]['split_side_green']} s)", COLORS_FT[k]))
     ent += [("max_pressure", "Max-pressure", "#7B4FA0"), ("algo", algo.upper(), "#0F6E56")]
@@ -43,32 +43,40 @@ def plot_run(s, path, algo, net):
     mets = [("mean_waiting_time", "Mean waiting time per step\n(grid-wide sum)"), ("mean_vehicle_wait", "Mean wait per vehicle (s)\n(completed trips)"),
             ("throughput", "Throughput (vehicles arrived)"), ("mean_queue_length", "Mean queue length (vehicles)"),
             ("phase_changes", "Phase changes per junction\nper episode")]
+    fmt = lambda v: f"{v:.0f}" if abs(v) >= 100 else f"{v:.1f}"
     fig, axes = plt.subplots(1, 5, figsize=(22, 4.6))
     for ax, (m, title) in zip(axes, mets):
         if m == "phase_changes":
-            mu = [(s[k]["n_switch_votes"]["mean"] + s[k]["n_forced_switches"]["mean"]) / nj for k, _, _ in ent]; sd = [float(np.hypot(s[k]["n_switch_votes"]["std"], s[k]["n_forced_switches"]["std"])) / nj for k, _, _ in ent]   # std of voted + forced changes (independence assumed)
+            mu = [(s[k]["n_switch_votes"]["mean"] + s[k]["n_forced_switches"]["mean"]) / nj for k, _, _ in ent]
+            sd = [float(np.hypot(s[k]["n_switch_votes"]["std"], s[k]["n_forced_switches"]["std"])) / nj for k, _, _ in ent]   # std of voted + forced changes (independence assumed)
         else:
             mu = [s[k][m]["mean"] for k, _, _ in ent]; sd = [s[k][m]["std"] for k, _, _ in ent]
-        ax.bar([lab for _, lab, _ in ent], mu, yerr=sd, capsize=4, color=[c for _, _, c in ent]); ax.set_title(title, fontsize=10); plt.setp(ax.get_xticklabels(), rotation=35, ha="right", rotation_mode="anchor")
+        cont = ax.bar([lab for _, lab, _ in ent], mu, yerr=sd, capsize=4, color=[c for _, _, c in ent])
+        ax.bar_label(cont, labels=[fmt(v) for v in mu], fontsize=7, padding=2)
+        ax.margins(y=0.12); ax.set_title(title, fontsize=10)
+        plt.setp(ax.get_xticklabels(), rotation=35, ha="right", rotation_mode="anchor")
     fig.suptitle(f"{algo.upper()} vs baselines on the {net} grid (mean ± std over evaluation episodes)", fontsize=12); fig.tight_layout()
     os.makedirs(os.path.dirname(path), exist_ok=True); fig.savefig(path, dpi=150); plt.close(fig); print("saved", path)
-
-
+ 
+ 
 made = 0
 for a in ALGOS:
     for sd in SEEDS:
         for n in NETS:
             d = os.path.join(ROOT, "runs", f"{a}_seed{sd}", f"eval_{n}"); p = os.path.join(d, "summary.json")
             if not os.path.exists(p): print("missing", p); continue
-            s = json.load(open(p))
+            s = json.load(open(p))                         # fixed_cycle (10 s) and always_switch stay in the copy
             for c in CYCLES: s[f"fixed_time_{c}"] = copy.deepcopy(field[n][plan_label(c)])
             json.dump(s, open(os.path.join(d, "summary_fixedtime.json"), "w"), indent=2)
             plot_run(s, os.path.join(ROOT, "runs", f"{a}_seed{sd}", "figures_fixedtime", f"baseline_comparison_{n}.png"), a, n); made += 1
 print(f"{made} run summaries written (summary_fixedtime.json)")
-
+ 
 results = []
 steps = [(f"compare algorithms {n}", {}, ["diagnostics/compare_algorithms.py", "--algos", *ALGOS, "--seeds", *map(str, SEEDS),
           "--summary_name", f"eval_{n}/summary_fixedtime.json", "--out", os.path.join("runs", "aggregate", f"compare_algorithms_{n}_fixedtime.png")]) for n in NETS]
+steps += [(f"agents vs max-pressure {n}", {}, ["diagnostics/compare_algorithms.py", "--algos", *ALGOS, "--seeds", *map(str, SEEDS),
+           "--summary_name", f"eval_{n}/summary_fixedtime.json", "--drop", "random", "fixed_time_90", "fixed_time_60",
+           "--out", os.path.join("runs", "aggregate", f"compare_algorithms_{n}_agents_vs_maxpressure.png")]) for n in NETS]
 for c in CYCLES:
     e = {"SUMMARY_NAME": "summary_fixedtime.json", "BASELINE_KEY": f"fixed_time_{c}", "OUT_SUFFIX": f"_fixedtime_vs{c}"}
     steps += [(f"topology generalization vs {c} s", e, ["scripts/make_topology_plot.py"]), (f"results table vs {c} s", e, ["scripts/make_results_table.py"])]
@@ -78,4 +86,5 @@ for label, extra, args in steps:
 print("\n" + "=" * 50)
 for label, rc in results: print(("ok   " if rc == 0 else "FAIL ") + label)
 print("Outputs: runs/<algo>_seed<N>/figures_fixedtime/, runs/aggregate/compare_algorithms_<net>_fixedtime.png, "
-      "topology_generalization_dqn_ppo_fixedtime_vs90.png / _vs60.png, results_table_fixedtime_vs90.md/.csv / _vs60.md/.csv")
+      "compare_algorithms_<net>_agents_vs_maxpressure.png, topology_generalization_dqn_ppo_fixedtime_vs90.png / _vs60.png, "
+      "results_table_fixedtime_vs90.md/.csv / _vs60.md/.csv")
